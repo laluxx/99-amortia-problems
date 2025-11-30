@@ -2,32 +2,25 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module Main where
+module Main (main) where
 
 import Web.Scotty
 import Network.HTTP.Types.Status (status409)
 import Data.Aeson (FromJSON, ToJSON(..), object, (.=), pairs)
-import qualified Data.Text.Lazy as TL
 import qualified Data.Text as T
 import GHC.Generics
 import Control.Monad.IO.Class (liftIO)
 import System.Process (readProcessWithExitCode)
 import System.Exit (ExitCode(..))
-import System.IO.Temp (withSystemTempDirectory)
-import System.IO (hPutStr, hClose, writeFile)
-import System.FilePath ((</>), takeBaseName)
+import System.FilePath ((</>))
 import Database.SQLite.Simple
-import Database.SQLite.Simple.FromRow
-import Control.Exception (SomeException)
 import qualified Control.Exception as E
+import Control.Exception (SomeException, bracket)
 import Network.Wai.Middleware.Cors
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Data.IORef
 import System.IO.Unsafe (unsafePerformIO)
-import System.Posix.Files (setFileMode, ownerExecuteMode, ownerReadMode, ownerWriteMode, unionFileModes)
-import System.Directory (createDirectoryIfMissing, removePathForcibly, listDirectory, getCurrentDirectory, setCurrentDirectory)
-import Control.Monad (forM_)
-import Control.Exception (bracket)
+import System.Directory (createDirectoryIfMissing, removePathForcibly, getCurrentDirectory, setCurrentDirectory)
 
 -- Data Types
 data Solution = Solution
@@ -149,7 +142,7 @@ runAmortiaCode problemId testName code = do
     (\_ -> setCurrentDirectory currentDir)
     (\_ -> do
       -- Write Amortia source in test directory
-      Prelude.writeFile amorFile (T.unpack code)
+      writeFile amorFile (T.unpack code)
       
       -- Compile with Amortia using relative path to compiler
       let compilerPath = currentDir </> "amortia"
@@ -285,8 +278,8 @@ main = do
     
     -- Check if user has submitted
     get "/api/check-submission/:problemId/:username" $ do
-      problemId <- pathParam "problemId"
-      username <- pathParam "username"
+      problemId <- captureParam "problemId"
+      username <- captureParam "username"
       hasSubmitted <- liftIO $ hasUserSubmitted conn problemId username
       json $ object ["hasSubmitted" .= hasSubmitted]
     
@@ -323,7 +316,7 @@ main = do
     
     -- Get solutions for a problem
     get "/api/solutions/:problemId" $ do
-      problemId <- pathParam "problemId"
+      problemId <- captureParam "problemId"
       solutions <- liftIO $ query conn
         "SELECT problem_id, code, username, submitted_at \
         \FROM solutions WHERE problem_id = ? \

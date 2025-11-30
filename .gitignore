@@ -3,4 +3,6 @@
 *.beam
 tests
 problems.db
-main
+.stack-work
+amortia-problems.cabal
+stack.yaml.lock
