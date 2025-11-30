@@ -1,0 +1,6 @@
+*.hi
+*.o
+*.beam
+tests
+problems.db
+main
