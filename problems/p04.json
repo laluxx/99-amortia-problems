@@ -1,0 +1,30 @@
+{
+  "problemId": "p04",
+  "problemNumber": "P04",
+  "problemDifficulty": "easy",
+  "problemTitle": "Find the number of elements in a list",
+  "problemDescription": "Write a function that returns the length of a list.",
+  "problemExample": {
+    "code": "len [1,2,3]",
+    "result": "3"
+  },
+  "problemFunctionSignature": "defn len :: [a] -> Int {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: len [1,2,3]",
+      "testCaseCall": "display len [1,2,3]",
+      "testCaseExpected": "3"
+    },
+    {
+      "testCaseName": "Test 2: len []",
+      "testCaseCall": "display len []",
+      "testCaseExpected": "0"
+    },
+    {
+      "testCaseName": "Test 3: len [1]",
+      "testCaseCall": "display len [1]",
+      "testCaseExpected": "1"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

@@ -1,0 +1,25 @@
+{
+  "problemId": "p03",
+  "problemNumber": "P03",
+  "problemDifficulty": "easy",
+  "problemTitle": "Find the Kth element of a list",
+  "problemDescription": "Write a function that returns the element at index K in a list (0-indexed).",
+  "problemExample": {
+    "code": "kth [0,1,2,3] 2",
+    "result": "2"
+  },
+  "problemFunctionSignature": "defn kth :: [a] -> Int -> a {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: kth [0,1,2,3] 2",
+      "testCaseCall": "display kth [0,1,2,3] 2",
+      "testCaseExpected": "2"
+    },
+    {
+      "testCaseName": "Test 2: kth [\"a\",\"b\",\"c\"] 0",
+      "testCaseCall": "display kth [\"a\",\"b\",\"c\"] 0",
+      "testCaseExpected": "a"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

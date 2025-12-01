@@ -1,18 +1,22 @@
 const API_BASE = '/api';
 
-// Session management (replaces localStorage manipulation)
+// Session management
 let sessionToken = null;
 let currentUsername = null;
 let isVerifiedUser = false;
 const solvedProblems = new Set();
 let currentlyOpenProblem = null;
+let problems = [];
 
 // Track empty test attempts per problem
 const emptyTestAttempts = new Map();
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-  // Try to restore session from sessionStorage (more secure than localStorage)
+  // Always load problems first (no login required to view)
+  await loadProblems();
+  
+  // Try to restore session from sessionStorage
   const savedToken = sessionStorage.getItem('sessionToken');
   const savedUsername = sessionStorage.getItem('username');
   
@@ -25,14 +29,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('passwordInput').disabled = true;
     document.getElementById('loginButton').style.display = 'none';
     
-    // Verify session is still valid by making a test request
+    // Verify session is still valid
     const isValid = await verifySession();
     if (!isValid) {
-      // Session expired or server restarted - clear everything
       showNotification('Session expired. Please log in again.', 'error');
       clearSession();
     } else {
-      // Valid session - check submissions
+      // Check submissions if logged in
       await checkAllSubmissions();
     }
   }
@@ -40,12 +43,133 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateProgress();
 });
 
+// Load problems from API
+async function loadProblems() {
+  try {
+    const response = await fetch(`${API_BASE}/problems`);
+    problems = await response.json();
+    renderProblems();
+  } catch (error) {
+    console.error('Error loading problems:', error);
+    showNotification('Error loading problems from server', 'error');
+  }
+}
+
+// Render problems dynamically
+function renderProblems() {
+  const container = document.querySelector('.container');
+  
+  // Group problems by section
+  const sections = {};
+  problems.forEach(problem => {
+    const section = problem.section || 'Working with Lists';
+    if (!sections[section]) {
+      sections[section] = [];
+    }
+    sections[section].push(problem);
+  });
+  
+  // Find where to insert (after difficulty legend)
+  const difficultyLegend = document.querySelector('.difficulty-legend');
+  
+  // Clear existing problems
+  const existingProblems = document.querySelectorAll('.problem, .section-header');
+  existingProblems.forEach(el => el.remove());
+  
+  // Keep track of where to insert next
+  let lastElement = difficultyLegend;
+  
+  // Render each section
+  Object.keys(sections).forEach(sectionName => {
+    const sectionHeader = document.createElement('div');
+    sectionHeader.className = 'section-header';
+    sectionHeader.textContent = sectionName;
+    
+    // Insert section header after the last element
+    lastElement.insertAdjacentElement('afterend', sectionHeader);
+    lastElement = sectionHeader;
+    
+    // Insert problems in correct order (after section header)
+    sections[sectionName].forEach(problem => {
+      const problemEl = createProblemElement(problem);
+      lastElement.insertAdjacentElement('afterend', problemEl);
+      lastElement = problemEl; // Update last element to the one we just inserted
+    });
+  });
+}
+
+// Create problem HTML element
+function createProblemElement(problem) {
+  const problemDiv = document.createElement('div');
+  problemDiv.className = 'problem';
+  problemDiv.dataset.problemId = problem.problemId;
+  
+  const difficultyClass = `difficulty-${problem.problemDifficulty}`;
+  const difficultySymbol = {
+    'easy': '(*)',
+    'medium': '(**)',
+    'hard': '(***)'
+  }[problem.problemDifficulty] || '(*)';
+  
+  problemDiv.innerHTML = `
+    <div class="problem-header" onclick="toggleProblem('${problem.problemId}')">
+      <span class="problem-number">${problem.problemNumber}</span>
+      <span class="problem-difficulty ${difficultyClass}">${difficultySymbol}</span>
+      <span class="problem-title">${escapeHtml(problem.problemTitle)}</span>
+      <span class="status-badge solved" style="display: none;">✓ Solved</span>
+    </div>
+    <div class="problem-content">
+      <div class="problem-description">
+        ${escapeHtml(problem.problemDescription)}
+      </div>
+      <div class="problem-example">
+        <div class="example-label">Example:</div>
+        <div class="code"><span class="function">${escapeHtml(problem.problemExample.code)}</span>
+<span class="comment">-- Result: ${escapeHtml(problem.problemExample.result)}</span></div>
+      </div>
+
+      <div class="editor-container">
+        <div class="editor-header">
+          <span>Your Solution</span>
+          <span class="editor-language">
+            <span class="logo-wrapper"><img src="/logo.png" alt="" class="editor-logo"></span>
+            Amortia
+          </span>
+        </div>
+        <textarea class="editor" data-problem="${problem.problemId}" placeholder="${escapeHtml(problem.problemFunctionSignature)}"></textarea>
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="runTests('${problem.problemId}')">
+          <span class="btn-text">Run Tests</span>
+        </button>
+        <button class="btn btn-secondary" onclick="submitSolution('${problem.problemId}')" disabled>
+          Submit Solution
+        </button>
+      </div>
+
+      <div class="test-results" style="display: none;"></div>
+
+      <div class="solutions-section">
+        <div class="solutions-header">Community Solutions</div>
+        <div class="solutions-content">
+          <div class="locked-message">
+            <div class="locked-icon">🔒</div>
+            <div>Submit your solution to see other people's solutions!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  return problemDiv;
+}
+
 // Verify if session is still valid
 async function verifySession() {
   if (!sessionToken) return false;
   
   try {
-    // Make a lightweight request to check session validity
     const response = await fetch(`${API_BASE}/verify-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -75,10 +199,9 @@ function clearSession() {
   usernameInput.focus();
 }
 
-// Username handling - now requires login
+// Username handling
 const usernameInput = document.getElementById('usernameInput');
 const passwordInput = document.getElementById('passwordInput');
-const usernameSaved = document.getElementById('usernameSaved');
 const loginButton = document.getElementById('loginButton');
 
 loginButton.addEventListener('click', async () => {
@@ -112,7 +235,6 @@ async function loginUser() {
   }
   
   loginButton.disabled = true;
-
     
   try {
     const response = await fetch(`${API_BASE}/login`, {
@@ -120,7 +242,7 @@ async function loginUser() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         username,
-        password: password || null  // Send null if empty
+        password: password || null
       })
     });
     
@@ -131,7 +253,6 @@ async function loginUser() {
       currentUsername = data.username;
       isVerifiedUser = data.verified || false;
       
-      // Save to sessionStorage
       sessionStorage.setItem('sessionToken', sessionToken);
       sessionStorage.setItem('username', currentUsername);
       sessionStorage.setItem('verified', isVerifiedUser);
@@ -154,7 +275,6 @@ async function loginUser() {
         }
       }
       
-      // Check submissions with valid session
       await checkAllSubmissions();
     } else {
       showNotification(data.error || 'Login failed', 'error');
@@ -175,10 +295,10 @@ async function loginUser() {
 async function checkAllSubmissions() {
   if (!currentUsername) return;
   
-  const problems = document.querySelectorAll('.problem');
+  const problemElements = document.querySelectorAll('.problem');
   solvedProblems.clear();
   
-  for (const problem of problems) {
+  for (const problem of problemElements) {
     const problemId = problem.dataset.problemId;
     try {
       const response = await fetch(`${API_BASE}/check-submission/${problemId}/${currentUsername}`);
@@ -197,14 +317,12 @@ async function checkAllSubmissions() {
         submitButton.style.background = '#4ec9b0';
         submitButton.style.color = '#1e1e1e';
         
-        // Load solutions for solved problems
         loadSolutions(problemId);
       } else {
         problem.classList.remove('solved');
         const badge = problem.querySelector('.status-badge');
         badge.style.display = 'none';
         
-        // Show locked message for unsolved
         loadSolutions(problemId);
       }
     } catch (error) {
@@ -242,9 +360,8 @@ function toggleProblem(problemId) {
   }
 }
 
-// Run tests - now requires session
+// Run tests
 async function runTests(problemId) {
-  // Check if logged in
   if (!sessionToken) {
     showNotification('Please log in with a username first', 'error');
     document.getElementById('usernameInput').focus();
@@ -258,55 +375,24 @@ async function runTests(problemId) {
   const submitButton = problem.querySelector('.btn-secondary');
   
   if (!code) {
-    // Track empty test attempts
     const attempts = (emptyTestAttempts.get(problemId) || 0) + 1;
     emptyTestAttempts.set(problemId, attempts);
     
-    // Escalating anger messages
     const messages = [
-      {
-        emoji: '👀',
-        title: 'Are you trying to test empty code?',
-        subtitle: 'Write some code first, then run the tests!'
-      },
-      {
-        emoji: '🤨',
-        title: 'Really? Empty code again?',
-        subtitle: 'I\'m starting to think you\'re doing this on purpose...'
-      },
-      {
-        emoji: '😐',
-        title: 'Okay, this is getting ridiculous.',
-        subtitle: 'Please. Just write. Some. Code.'
-      },
-      {
-        emoji: '😤',
-        title: 'ARE YOU KIDDING ME?!',
-        subtitle: 'HOW MANY TIMES DO I NEED TO TELL YOU?!'
-      },
-      {
-        emoji: '🤬',
-        title: 'I AM GOING TO LOSE IT',
-        subtitle: 'WRITE. CODE. IN. THE. EDITOR. THEN. CLICK. RUN.'
-      },
-      {
-        emoji: '💀',
-        title: 'You know what? Fine.',
-        subtitle: 'You win. I give up. Do whatever you want.'
-      },
-      {
-        emoji: '🪦',
-        title: '...',
-        subtitle: ''
-      }
+      { emoji: '👀', title: 'Are you trying to test empty code?', subtitle: 'Write some code first, then run the tests!' },
+      { emoji: '🤨', title: 'Really? Empty code again?', subtitle: 'I\'m starting to think you\'re doing this on purpose...' },
+      { emoji: '😐', title: 'Okay, this is getting ridiculous.', subtitle: 'Please. Just write. Some. Code.' },
+      { emoji: '😤', title: 'ARE YOU KIDDING ME?!', subtitle: 'HOW MANY TIMES DO I NEED TO TELL YOU?!' },
+      { emoji: '🤬', title: 'I AM GOING TO LOSE IT', subtitle: 'WRITE. CODE. IN. THE. EDITOR. THEN. CLICK. RUN.' },
+      { emoji: '💀', title: 'You know what? Fine.', subtitle: 'You win. I give up. Do whatever you want.' },
+      { emoji: '🪦', title: '...', subtitle: '' }
     ];
     
     let messageIndex = Math.min(attempts - 1, messages.length - 1);
     let message = messages[messageIndex];
     
-    // After tombstone (7th attempt), if they keep going (15+ attempts), roast them
     if (attempts >= 15) {
-      const total = document.querySelectorAll('.problem').length;
+      const total = problems.length;
       const solved = solvedProblems.size;
       message = {
         emoji: '🔥',
@@ -315,9 +401,7 @@ async function runTests(problemId) {
       };
     }
     
-    // If they STILL keep clicking (16+ attempts), rickroll them
     if (attempts >= 16) {
-      // Embed the video with audio playing in background
       resultsDiv.style.display = 'block';
       resultsDiv.innerHTML = `
         <div style="padding: 20px; text-align: center;">
@@ -327,7 +411,6 @@ async function runTests(problemId) {
           </div>
           <video id="rickrollVideo" width="100%" style="max-width: 560px; border-radius: 8px; pointer-events: none;" loop muted disablepictureinpicture>
             <source src="https://ia804503.us.archive.org/15/items/kikTXNL6MvX6ZpRXM/kikTXNL6MvX6ZpRXM.mp4" type="video/mp4">
-            Your browser does not support the video tag.
           </video>
           <audio id="rickrollAudio" loop style="display: none;">
             <source src="https://ia804503.us.archive.org/15/items/kikTXNL6MvX6ZpRXM/kikTXNL6MvX6ZpRXM.mp4" type="audio/mp4">
@@ -338,13 +421,11 @@ async function runTests(problemId) {
         </div>
       `;
       
-      // Sync audio with video
       setTimeout(() => {
         const video = document.getElementById('rickrollVideo');
         const audio = document.getElementById('rickrollAudio');
         
         if (video && audio) {
-          // Wait for both to be ready
           Promise.all([
             new Promise(resolve => {
               if (video.readyState >= 3) resolve();
@@ -355,7 +436,6 @@ async function runTests(problemId) {
               else audio.addEventListener('canplay', resolve, { once: true });
             })
           ]).then(() => {
-            // Start both at the exact same time
             video.currentTime = 0;
             audio.currentTime = 0;
             video.play();
@@ -382,7 +462,6 @@ async function runTests(problemId) {
     return;
   }
   
-  // Reset empty test counter when actual code is provided
   emptyTestAttempts.set(problemId, 0);
   
   runButton.disabled = true;
@@ -428,7 +507,6 @@ async function runTests(problemId) {
     resultsDiv.innerHTML = html;
 
     if (data.allPassed) {
-      // Check if already submitted
       const hasSubmitted = await checkIfAlreadySubmitted(problemId);
       
       if (!hasSubmitted) {
@@ -467,7 +545,7 @@ async function checkIfAlreadySubmitted(problemId) {
   }
 }
 
-// Submit solution - server validates tests again
+// Submit solution
 async function submitSolution(problemId) {
   if (!sessionToken) {
     showNotification('Please log in first', 'error');
@@ -561,7 +639,6 @@ async function loadSolutions(problemId) {
   const problem = document.querySelector(`[data-problem-id="${problemId}"]`);
   const solutionsContent = problem.querySelector('.solutions-content');
 
-  // Check if current user has submitted this problem
   const hasSubmitted = solvedProblems.has(problemId);
 
   if (!hasSubmitted) {
@@ -606,9 +683,9 @@ async function loadSolutions(problemId) {
 }
 
 function updateProgress() {
-  const total = document.querySelectorAll('.problem').length;
+  const total = problems.length;
   const solved = solvedProblems.size;
-  const percent = (solved / total * 100).toFixed(1);
+  const percent = total > 0 ? (solved / total * 100).toFixed(1) : 0;
   const progressBar = document.getElementById('progressBar');
   const progressText = document.getElementById('progressText');
   

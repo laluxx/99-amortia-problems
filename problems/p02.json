@@ -1,0 +1,30 @@
+{
+  "problemId": "p02",
+  "problemNumber": "P02",
+  "problemDifficulty": "easy",
+  "problemTitle": "Find the last but one element of a list",
+  "problemDescription": "Write a function that returns the second-to-last element of a list.",
+  "problemExample": {
+    "code": "penultimate [1,1,2,3,5,8]",
+    "result": "5"
+  },
+  "problemFunctionSignature": "defn penultimate :: [a] -> a {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: penultimate [1,1,2,3,5,8]",
+      "testCaseCall": "display penultimate [1,1,2,3,5,8]",
+      "testCaseExpected": "5"
+    },
+    {
+      "testCaseName": "Test 2: penultimate [\"x\",\"y\"]",
+      "testCaseCall": "display penultimate [\"x\",\"y\"]",
+      "testCaseExpected": "x"
+    },
+    {
+      "testCaseName": "Test 3: penultimate [1,2]",
+      "testCaseCall": "display penultimate [1,2]",
+      "testCaseExpected": "1"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

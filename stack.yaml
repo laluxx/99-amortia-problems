@@ -1,15 +1,6 @@
-resolver: lts-22.39  # GHC 9.6.6 to match your current setup
+resolver: lts-22.39
 
 packages:
   - .
-
-# Uncomment to build fully static binaries (Linux only)
-# ghc-options:
-#   "$everything": -optl-static -optl-pthread -fPIC
-
-# If you want static linking, uncomment this:
-# flags:
-#   "*":
-#     static: true
 
 extra-deps: []

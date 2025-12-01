@@ -1,0 +1,25 @@
+{
+  "problemId": "p05",
+  "problemNumber": "P05",
+  "problemDifficulty": "easy",
+  "problemTitle": "Reverse a list",
+  "problemDescription": "Write a function that reverses a list.",
+  "problemExample": {
+    "code": "reverse [1,2,3,4]",
+    "result": "[4,3,2,1]"
+  },
+  "problemFunctionSignature": "defn reverse :: [a] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: reverse [1,2,3,4]",
+      "testCaseCall": "display reverse [1,2,3,4]",
+      "testCaseExpected": "[4,3,2,1]"
+    },
+    {
+      "testCaseName": "Test 2: reverse []",
+      "testCaseCall": "display reverse []",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

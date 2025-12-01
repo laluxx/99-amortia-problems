@@ -1,0 +1,30 @@
+{
+  "problemId": "p01",
+  "problemNumber": "P01",
+  "problemDifficulty": "easy",
+  "problemTitle": "Find the last element of a list",
+  "problemDescription": "Write a function that returns the last element of a list.",
+  "problemExample": {
+    "code": "last [1,2,3,4]",
+    "result": "4"
+  },
+  "problemFunctionSignature": "defn last :: [a] -> a {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: last [1,2,3,4]",
+      "testCaseCall": "display last [1,2,3,4]",
+      "testCaseExpected": "4"
+    },
+    {
+      "testCaseName": "Test 2: last [42]",
+      "testCaseCall": "display last [42]",
+      "testCaseExpected": "42"
+    },
+    {
+      "testCaseName": "Test 3: last [\"a\",\"b\",\"c\"]",
+      "testCaseCall": "display last [\"a\",\"b\",\"c\"]",
+      "testCaseExpected": "c"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

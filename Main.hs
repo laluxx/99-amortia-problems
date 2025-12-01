@@ -6,7 +6,9 @@ module Main (main) where
 
 import Web.Scotty
 import Network.HTTP.Types.Status (status409, status403, status401)
-import Data.Aeson (FromJSON, ToJSON(..), object, (.=), pairs)
+-- import Data.Aeson (FromJSON, ToJSON(..), object, (.=), pairs, eitherDecodeFileStrict)
+-- import Data.Aeson (FromJSON, ToJSON(..), object, (.=), pairs, eitherDecodeFileStrict, withObject, (.:))
+import Data.Aeson (FromJSON(..), ToJSON(..), object, (.=), pairs, eitherDecodeFileStrict, withObject, (.:))
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import GHC.Generics
@@ -22,13 +24,14 @@ import Network.Wai.Middleware.Cors
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Data.IORef
 import System.IO.Unsafe (unsafePerformIO)
-import System.Directory (createDirectoryIfMissing, removePathForcibly, getCurrentDirectory, setCurrentDirectory)
+import System.Directory (createDirectoryIfMissing, removePathForcibly, getCurrentDirectory, setCurrentDirectory, listDirectory)
 import qualified Data.Map.Strict as Map
 import Data.Time.Clock (getCurrentTime, UTCTime, addUTCTime)
 import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BS
 import System.Random (randomRIO)
+import Data.List (isSuffixOf, sortOn)
 
 -- Session Management
 type SessionToken = T.Text
@@ -89,7 +92,83 @@ markTestPassed token problemId = do
             updatedSession = session { sessionPassedTests = updatedTests }
         in (Map.insert token updatedSession store, ())
 
--- Removed unused function: hasPassedTest
+data ProblemExample = ProblemExample
+  { exampleCode :: T.Text
+  , exampleResult :: T.Text
+  } deriving (Show, Generic)
+
+instance FromJSON ProblemExample where
+  parseJSON = withObject "ProblemExample" $ \v -> ProblemExample
+    <$> v .: "code"
+    <*> v .: "result"
+
+instance ToJSON ProblemExample where
+  toJSON (ProblemExample code result) = object
+    [ "code" .= code
+    , "result" .= result
+    ]
+
+data TestCase = TestCase
+  { testCaseName :: T.Text
+  , testCaseCall :: T.Text
+  , testCaseExpected :: T.Text
+  } deriving (Show, Generic)
+
+instance FromJSON TestCase where
+instance ToJSON TestCase where
+
+data Problem = Problem
+  { problemId :: T.Text
+  , problemNumber :: T.Text
+  , problemDifficulty :: T.Text
+  , problemTitle :: T.Text
+  , problemDescription :: T.Text
+  , problemExample :: ProblemExample
+  , problemFunctionSignature :: T.Text
+  , problemTestCases :: [TestCase]
+  , problemSection :: Maybe T.Text
+  } deriving (Show, Generic)
+
+instance FromJSON Problem where
+instance ToJSON Problem where
+
+-- Global problem store
+{-# NOINLINE problemStore #-}
+problemStore :: IORef [Problem]
+problemStore = unsafePerformIO (newIORef [])
+
+-- Load all problems from JSON files
+loadProblems :: IO [Problem]
+loadProblems = do
+  createDirectoryIfMissing True "problems"
+  files <- listDirectory "problems"
+  let jsonFiles = filter (isSuffixOf ".json") files
+  problems <- mapM loadProblem jsonFiles
+  let validProblems = [p | Right p <- problems]
+  -- Sort by problem number
+  let sorted = sortOn problemNumber validProblems
+  atomicModifyIORef' problemStore $ \_ -> (sorted, ())
+  putStrLn $ "Loaded " ++ show (length sorted) ++ " problems"
+  return sorted
+
+loadProblem :: FilePath -> IO (Either String Problem)
+loadProblem filename = do
+  result <- eitherDecodeFileStrict ("problems" </> filename)
+  case result of
+    Left err -> do
+      putStrLn $ "Error loading " ++ filename ++ ": " ++ err
+      return $ Left err
+    Right problem -> return $ Right problem
+
+getProblems :: IO [Problem]
+getProblems = readIORef problemStore
+
+getProblemById :: T.Text -> IO (Maybe Problem)
+getProblemById pid = do
+  problems <- getProblems
+  return $ case filter (\(Problem { problemId = pId }) -> pId == pid) problems of
+    (p:_) -> Just p
+    [] -> Nothing
 
 -- Data Types
 data Solution = Solution
@@ -172,15 +251,12 @@ data TestResponse = TestResponse
 instance FromJSON TestResponse
 instance ToJSON TestResponse
 
-
 newtype VerifySessionRequest = VerifySessionRequest
   { verifyToken :: T.Text
   } deriving (Show, Generic)
 
 instance FromJSON VerifySessionRequest
 instance ToJSON VerifySessionRequest
-
--- Removed unused counter and function (test names are generated differently now)
 
 -- Clean up test directory for a problem
 cleanTestDirectory :: T.Text -> IO ()
@@ -320,66 +396,42 @@ extractErlangError output =
      then "Compilation error (Erlang)"
      else "Compilation error:\n" <> T.strip errorMsg
 
--- Test Cases for Problems
-getTestCases :: T.Text -> [(T.Text, T.Text, T.Text)]
-getTestCases "p01" = 
-  [ ("Test 1: last [1,2,3,4]", "display last [1,2,3,4]", "4")
-  , ("Test 2: last [42]", "display last [42]", "42")
-  , ("Test 3: last [\"a\",\"b\",\"c\"]", "display last [\"a\",\"b\",\"c\"]", "c")
-  ]
-getTestCases "p02" = 
-  [ ("Test 1: penultimate [1,1,2,3,5,8]", "display penultimate [1,1,2,3,5,8]", "5")
-  , ("Test 2: penultimate [\"x\",\"y\"]", "display penultimate [\"x\",\"y\"]", "x")
-  , ("Test 3: penultimate [1,2]", "display penultimate [1,2]", "1")
-  ]
-getTestCases "p03" = 
-  [ ("Test 1: kth [0,1,2,3] 2", "display kth [0,1,2,3] 2", "2")
-  , ("Test 2: kth [\"a\",\"b\",\"c\"] 0", "display kth [\"a\",\"b\",\"c\"] 0", "a")
-  ]
-getTestCases "p04" = 
-  [ ("Test 1: len [1,2,3]", "display len [1,2,3]", "3")
-  , ("Test 2: len []", "display len []", "0")
-  , ("Test 3: len [1]", "display len [1]", "1")
-  ]
-getTestCases "p05" = 
-  [ ("Test 1: reverse [1,2,3,4]", "display reverse [1,2,3,4]", "[4,3,2,1]")
-  , ("Test 2: reverse []", "display reverse []", "[]")
-  ]
-getTestCases "p06" = 
-  [ ("Test 1: isPalindrome [1,2,3,2,1]", "display isPalindrome [1,2,3,2,1]", "true")
-  , ("Test 2: isPalindrome [1,2,3]", "display isPalindrome [1,2,3]", "false")
-  ]
-getTestCases _ = []
-
 -- Run Tests
-runTests :: TestRequest -> IO TestResponse
+runTests :: TestRequest -> IO (Either String TestResponse)
 runTests (TestRequest pid cod _) = do
-  cleanTestDirectory pid
-  
-  let testCases = getTestCases pid
-  results <- mapM (runSingleTest pid cod) (zip [1..] testCases)
-  return $ TestResponse results (all testPassed results)
+  mProblem <- getProblemById pid
+  case mProblem of
+    Nothing -> return $ Left "Problem not found"
+    Just problem -> do
+      cleanTestDirectory pid
+      
+      let testCases = problemTestCases problem
+      results <- mapM (runSingleTest pid cod) (zip [1..] testCases)
+      return $ Right $ TestResponse results (all testPassed results)
 
-runSingleTest :: T.Text -> T.Text -> (Int, (T.Text, T.Text, T.Text)) -> IO TestResult
-runSingleTest problemId userCode (testNum, (name, testCall, expected)) = do
+runSingleTest :: T.Text -> T.Text -> (Int, TestCase) -> IO TestResult
+runSingleTest problemId userCode (testNum, testCase) = do
   let testName = T.pack $ T.unpack problemId ++ "_test_" ++ show testNum
   
-  let fullCode = userCode <> "\n\ndefn main :: () {\n    " <> testCall <> "\n    halt 0\n}"
+  let fullCode = userCode <> "\n\ndefn main :: () {\n    " <> testCaseCall testCase <> "\n    halt 0\n}"
   result <- runAmortiaCode problemId testName fullCode
   
   return $ case result of
     Right output -> 
       let cleanOutput = T.strip output
-          cleanExpected = T.strip expected
+          cleanExpected = T.strip (testCaseExpected testCase)
       in if cleanOutput == cleanExpected
-        then TestResult name True Nothing
-        else TestResult name False (Just $ "Expected: " <> cleanExpected <> ", Got: " <> cleanOutput)
-    Left err -> TestResult name False (Just err)
+        then TestResult (testCaseName testCase) True Nothing
+        else TestResult (testCaseName testCase) False (Just $ "Expected: " <> cleanExpected <> ", Got: " <> cleanOutput)
+    Left err -> TestResult (testCaseName testCase) False (Just err)
 
 -- API Routes
 main :: IO ()
 main = do
   conn <- initDB
+  
+  -- Load problems from JSON
+  _ <- loadProblems
   
   putStrLn "Starting Amortia Problems server on http://localhost:3000"
   
@@ -393,7 +445,12 @@ main = do
     get "/script.js" $ file "script.js"
     get "/logo.png" $ file "logo.png"    
 
-    -- Login/Session endpoint (now separate from registration)
+    -- Get all problems
+    get "/api/problems" $ do
+      problems <- liftIO getProblems
+      json problems
+
+    -- Login/Session endpoint
     post "/api/login" $ do
       RegisterRequest username mPassword <- jsonData
       
@@ -485,13 +542,18 @@ main = do
               status status401
               json $ object ["error" .= ("Invalid or expired session" :: T.Text)]
             Just _ -> do
-              testResp <- liftIO $ runTests req
+              testResult <- liftIO $ runTests req
               
-              -- If all tests passed, mark in session
-              when (allPassed testResp) $ do
-                liftIO $ markTestPassed token pid
-              
-              json testResp
+              case testResult of
+                Left err -> do
+                  status status403
+                  json $ object ["error" .= err]
+                Right testResp -> do
+                  -- If all tests passed, mark in session
+                  when (allPassed testResp) $ do
+                    liftIO $ markTestPassed token pid
+                  
+                  json testResp
     
     -- Check if user has submitted
     get "/api/check-submission/:problemId/:username" $ do
@@ -523,43 +585,51 @@ main = do
                 ]
             Just session -> do
               -- SERVER-SIDE VALIDATION: Re-run tests to verify
-              testResp <- liftIO $ runTests (TestRequest pid code Nothing)
+              testResult <- liftIO $ runTests (TestRequest pid code Nothing)
               
-              if not (allPassed testResp)
-                then do
+              case testResult of
+                Left err -> do
                   status status403
                   json $ object 
                     [ "success" .= False
-                    , "error" .= ("Tests must pass before submission" :: T.Text)
+                    , "error" .= ("Error running tests: " <> T.pack err)
                     ]
-                else do
-                  let username = sessionUsername session
-                  
-                  -- Check if already submitted
-                  alreadySubmitted <- liftIO $ hasUserSubmitted conn pid username
-                  
-                  if alreadySubmitted
+                Right testResp -> do
+                  if not (allPassed testResp)
                     then do
-                      status status409
+                      status status403
                       json $ object 
                         [ "success" .= False
-                        , "error" .= ("You have already submitted a solution for this problem" :: T.Text)
+                        , "error" .= ("Tests must pass before submission" :: T.Text)
                         ]
                     else do
-                      -- Get verified status from session
-                      hasPass <- liftIO $ hasPassword conn username
+                      let username = sessionUsername session
                       
-                      result <- liftIO $ E.try $ execute conn 
-                        "INSERT INTO solutions (problem_id, code, username, verified) VALUES (?, ?, ?, ?)"
-                        (pid, code, username, hasPass) :: ActionM (Either SomeException ())
-                      case result of
-                        Right _ -> json $ object ["success" .= True]
-                        Left _ -> do
+                      -- Check if already submitted
+                      alreadySubmitted <- liftIO $ hasUserSubmitted conn pid username
+                      
+                      if alreadySubmitted
+                        then do
                           status status409
                           json $ object 
                             [ "success" .= False
-                            , "error" .= ("Error submitting solution" :: T.Text)
+                            , "error" .= ("You have already submitted a solution for this problem" :: T.Text)
                             ]
+                        else do
+                          -- Get verified status from session
+                          hasPass <- liftIO $ hasPassword conn username
+                          
+                          result <- liftIO $ E.try $ execute conn 
+                            "INSERT INTO solutions (problem_id, code, username, verified) VALUES (?, ?, ?, ?)"
+                            (pid, code, username, hasPass) :: ActionM (Either SomeException ())
+                          case result of
+                            Right _ -> json $ object ["success" .= True]
+                            Left _ -> do
+                              status status409
+                              json $ object 
+                                [ "success" .= False
+                                , "error" .= ("Error submitting solution" :: T.Text)
+                                ]
     
     -- Get solutions for a problem
     get "/api/solutions/:problemId" $ do

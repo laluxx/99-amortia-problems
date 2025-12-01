@@ -19,7 +19,6 @@ body {
     top: auto;
     left: auto;
     transform: rotate(-45deg);
-    /* transform-style: preserve-3d; */
 }
 
 .notification {
@@ -31,7 +30,7 @@ body {
   font-size: 14px;
   font-weight: 600;
   z-index: 1000;
-  transform: translateX(550px); /* Increased from 400px */
+  transform: translateX(550px);
   transition: transform 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   word-wrap: break-word; /* Wrap long text */
@@ -76,37 +75,10 @@ h1 {
   margin-bottom: 24px;
 }
 
-/* .username-input { */
-/*   display: flex; */
-/*   justify-content: center; */
-/*   align-items: center; */
-/*   gap: 12px; */
-/*   margin-top: 20px; */
-/* } */
-
 .username-label {
   color: #858585;
   font-size: 13px;
 }
-
-/* .username-field { */
-/*   background: #2d2d2d; */
-/*   border: 1px solid #3e3e3e; */
-/*   color: #d4d4d4; */
-/*   padding: 8px 16px; */
-/*   border-radius: 4px; */
-/*   font-family: inherit; */
-/*   font-size: 13px; */
-/*   width: 200px; */
-/* } */
-
-/* .username-field:focus { */
-/*   outline: none; */
-/*   border-color: #4ec9b0; */
-/* } */
-
-
-/* Add these styles to your existing style.css */
 
 .username-input {
   display: flex;
@@ -557,12 +529,6 @@ h1 {
   padding: 16px;
   margin-bottom: 12px;
 }
-
-/* .solution-author { */
-/*   font-size: 12px; */
-/*   color: #858585; */
-/*   margin-bottom: 8px; */
-/* } */
 
 .solution-code {
   background: #1e1e1e;

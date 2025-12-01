@@ -1,0 +1,25 @@
+{
+  "problemId": "p06",
+  "problemNumber": "P06",
+  "problemDifficulty": "easy",
+  "problemTitle": "Find out whether a list is a palindrome",
+  "problemDescription": "Write a function that checks if a list is a palindrome (reads the same forwards and backwards).",
+  "problemExample": {
+    "code": "isPalindrome [1,2,3,2,1]",
+    "result": "true"
+  },
+  "problemFunctionSignature": "defn isPalindrome :: [a] -> Bool {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: isPalindrome [1,2,3,2,1]",
+      "testCaseCall": "display isPalindrome [1,2,3,2,1]",
+      "testCaseExpected": "true"
+    },
+    {
+      "testCaseName": "Test 2: isPalindrome [1,2,3]",
+      "testCaseCall": "display isPalindrome [1,2,3]",
+      "testCaseExpected": "false"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}
