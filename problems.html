@@ -14,9 +14,18 @@
     <header>
       <h1>99 Amortia Problems</h1>
       <div class="subtitle">Learn functional programming through practice</div>
+
       <div class="username-input">
-        <span class="username-label">Your name (optional):</span>
-        <input type="text" class="username-field" id="usernameInput" placeholder="Anonymous" value="">
+        <div class="login-container">
+          <div class="login-fields">
+            <input type="text" class="username-field" id="usernameInput" placeholder="Username" value="">
+            <input type="password" class="password-field" id="passwordInput" placeholder="Password (optional)" value="">
+            <button class="btn-login" id="loginButton">Login</button>
+          </div>
+          <div class="login-info">
+            <span class="info-text">Password is optional but <strong>recommended</strong>. Without a password, anyone can impersonate you and submit solutions under your name.</span>
+          </div>
+        </div>
         <span class="username-saved" id="usernameSaved" style="display: none;">✓ Saved</span>
       </div>
 

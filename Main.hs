@@ -27,6 +27,7 @@ import qualified Data.Map.Strict as Map
 import Data.Time.Clock (getCurrentTime, UTCTime, addUTCTime)
 import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Data.ByteString.Base64 as B64
+import qualified Data.ByteString.Char8 as BS
 import System.Random (randomRIO)
 
 -- Session Management
@@ -96,26 +97,29 @@ data Solution = Solution
   , solutionCode :: T.Text
   , solutionUsername :: Maybe T.Text
   , solutionSubmittedAt :: Maybe T.Text
+  , solutionVerified :: Maybe Bool
   } deriving (Show, Generic)
 
 instance FromJSON Solution
 
 instance ToJSON Solution where
-  toJSON (Solution pid cod uname subAt) = object
+  toJSON (Solution pid cod uname subAt verified) = object
     [ "problemId" .= pid
     , "code" .= cod
     , "username" .= uname
     , "submittedAt" .= subAt
+    , "verified" .= verified
     ]
-  toEncoding (Solution pid cod uname subAt) = pairs
+  toEncoding (Solution pid cod uname subAt verified) = pairs
     ( "problemId" .= pid
     <> "code" .= cod
     <> "username" .= uname
     <> "submittedAt" .= subAt
+    <> "verified" .= verified
     )
 
 instance FromRow Solution where
-  fromRow = Solution <$> field <*> field <*> field <*> field
+  fromRow = Solution <$> field <*> field <*> field <*> field <*> field
 
 data TestRequest = TestRequest
   { problemId :: T.Text
@@ -143,6 +147,14 @@ newtype LoginRequest = LoginRequest
 instance FromJSON LoginRequest
 instance ToJSON LoginRequest
 
+data RegisterRequest = RegisterRequest
+  { username :: T.Text
+  , password :: Maybe T.Text  -- Optional password
+  } deriving (Show, Generic)
+
+instance FromJSON RegisterRequest
+instance ToJSON RegisterRequest
+
 data TestResult = TestResult
   { testName :: T.Text
   , testPassed :: Bool
@@ -160,6 +172,14 @@ data TestResponse = TestResponse
 instance FromJSON TestResponse
 instance ToJSON TestResponse
 
+
+newtype VerifySessionRequest = VerifySessionRequest
+  { verifyToken :: T.Text
+  } deriving (Show, Generic)
+
+instance FromJSON VerifySessionRequest
+instance ToJSON VerifySessionRequest
+
 -- Removed unused counter and function (test names are generated differently now)
 
 -- Clean up test directory for a problem
@@ -174,31 +194,60 @@ initDB :: IO Connection
 initDB = do
   conn <- open "problems.db"
   
-  -- Solutions table with unique constraint on username (not problem_id + username)
+  -- Solutions table with verified flag
   execute_ conn "CREATE TABLE IF NOT EXISTS solutions \
                  \(id INTEGER PRIMARY KEY AUTOINCREMENT, \
                  \ problem_id TEXT NOT NULL, \
                  \ code TEXT NOT NULL, \
                  \ username TEXT NOT NULL, \
                  \ submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, \
+                 \ verified BOOLEAN DEFAULT 0, \
                  \ UNIQUE(problem_id, username))"
   
-  -- Reserved usernames table to prevent hijacking
+  -- Reserved usernames table with optional password hash
   execute_ conn "CREATE TABLE IF NOT EXISTS reserved_usernames \
                  \(username TEXT PRIMARY KEY, \
+                 \ password_hash TEXT, \
                  \ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
   
   return conn
 
--- Reserve a username (first come, first served)
-reserveUsername :: Connection -> T.Text -> IO Bool
-reserveUsername conn username = do
+-- Hash password using SHA256
+hashPassword :: T.Text -> T.Text
+hashPassword password = 
+  TE.decodeUtf8 $ B64.encode $ SHA256.hash $ TE.encodeUtf8 password
+
+-- Reserve a username with optional password
+reserveUsernameWithPassword :: Connection -> T.Text -> Maybe T.Text -> IO Bool
+reserveUsernameWithPassword conn username mPassword = do
+  let hashedPassword = fmap hashPassword mPassword
   result <- E.try $ execute conn
-    "INSERT INTO reserved_usernames (username) VALUES (?)"
-    (Only username) :: IO (Either SomeException ())
+    "INSERT INTO reserved_usernames (username, password_hash) VALUES (?, ?)"
+    (username, hashedPassword) :: IO (Either SomeException ())
   case result of
     Right _ -> return True
-    Left _ -> return False  -- Username already taken
+    Left _ -> return False
+
+-- Verify password for username
+verifyPassword :: Connection -> T.Text -> T.Text -> IO Bool
+verifyPassword conn username password = do
+  results <- query conn
+    "SELECT password_hash FROM reserved_usernames WHERE username = ?"
+    (Only username) :: IO [Only (Maybe T.Text)]
+  case results of
+    [Only (Just hash)] -> return $ hash == hashPassword password
+    [Only Nothing] -> return False  -- Username exists but no password set
+    _ -> return False
+
+-- Check if username has password protection
+hasPassword :: Connection -> T.Text -> IO Bool
+hasPassword conn username = do
+  results <- query conn
+    "SELECT password_hash FROM reserved_usernames WHERE username = ?"
+    (Only username) :: IO [Only (Maybe T.Text)]
+  case results of
+    [Only (Just _)] -> return True
+    _ -> return False
 
 -- Check if username is reserved
 isUsernameReserved :: Connection -> T.Text -> IO Bool
@@ -343,44 +392,81 @@ main = do
     get "/style.css" $ file "style.css"
     get "/script.js" $ file "script.js"
     
-    -- Login/Session endpoint
+    -- Login/Session endpoint (now separate from registration)
     post "/api/login" $ do
-      LoginRequest username <- jsonData
+      RegisterRequest username mPassword <- jsonData
       
-      -- Validate username (not empty, reasonable length)
+      -- Validate username
       let cleanUsername = T.strip username
       if T.null cleanUsername || T.length cleanUsername > 50
         then do
           status status403
           json $ object ["error" .= ("Invalid username" :: T.Text)]
         else do
-          -- Check if username is already reserved by someone else
+          -- Check if username is already reserved
           reserved <- liftIO $ isUsernameReserved conn cleanUsername
           
           if not reserved
             then do
-              -- Reserve the username
-              success <- liftIO $ reserveUsername conn cleanUsername
+              -- New user registration
+              success <- liftIO $ reserveUsernameWithPassword conn cleanUsername mPassword
               if success
                 then do
                   token <- liftIO $ createSession cleanUsername
+                  let isVerified = case mPassword of
+                        Just p | not (T.null p) -> True
+                        _ -> False
                   json $ object 
                     [ "token" .= token
                     , "username" .= cleanUsername
                     , "newUser" .= True
+                    , "verified" .= isVerified
                     ]
                 else do
-                  -- Race condition - someone else reserved it
                   status status409
                   json $ object ["error" .= ("Username already taken" :: T.Text)]
             else do
-              -- Username is reserved - create session for returning user
-              token <- liftIO $ createSession cleanUsername
-              json $ object 
-                [ "token" .= token
-                , "username" .= cleanUsername
-                , "newUser" .= False
-                ]
+              -- Existing user login
+              hasPass <- liftIO $ hasPassword conn cleanUsername
+              
+              if hasPass
+                then case mPassword of
+                  Nothing -> do
+                    status status403
+                    json $ object ["error" .= ("Password required for this username" :: T.Text)]
+                  Just password -> do
+                    valid <- liftIO $ verifyPassword conn cleanUsername password
+                    if valid
+                      then do
+                        token <- liftIO $ createSession cleanUsername
+                        json $ object 
+                          [ "token" .= token
+                          , "username" .= cleanUsername
+                          , "newUser" .= False
+                          , "verified" .= True
+                          ]
+                      else do
+                        status status403
+                        json $ object ["error" .= ("Incorrect password" :: T.Text)]
+                else do
+                  -- Username reserved but no password - allow login
+                  token <- liftIO $ createSession cleanUsername
+                  json $ object 
+                    [ "token" .= token
+                    , "username" .= cleanUsername
+                    , "newUser" .= False
+                    , "verified" .= False
+                    ]
+    
+    -- Verify session endpoint
+    post "/api/verify-session" $ do
+      VerifySessionRequest token <- jsonData
+      mSession <- liftIO $ getSession token
+      case mSession of
+        Nothing -> do
+          status status401
+          json $ object ["valid" .= False]
+        Just _ -> json $ object ["valid" .= True]
     
     -- Test endpoint with session validation
     post "/api/test" $ do
@@ -459,9 +545,12 @@ main = do
                         , "error" .= ("You have already submitted a solution for this problem" :: T.Text)
                         ]
                     else do
+                      -- Get verified status from session
+                      hasPass <- liftIO $ hasPassword conn username
+                      
                       result <- liftIO $ E.try $ execute conn 
-                        "INSERT INTO solutions (problem_id, code, username) VALUES (?, ?, ?)"
-                        (pid, code, username) :: ActionM (Either SomeException ())
+                        "INSERT INTO solutions (problem_id, code, username, verified) VALUES (?, ?, ?, ?)"
+                        (pid, code, username, hasPass) :: ActionM (Either SomeException ())
                       case result of
                         Right _ -> json $ object ["success" .= True]
                         Left _ -> do
@@ -475,9 +564,9 @@ main = do
     get "/api/solutions/:problemId" $ do
       problemId <- captureParam "problemId"
       solutions <- liftIO $ query conn
-        "SELECT problem_id, code, username, submitted_at \
+        "SELECT problem_id, code, username, submitted_at, verified \
         \FROM solutions WHERE problem_id = ? \
-        \ORDER BY submitted_at DESC LIMIT 20"
+        \ORDER BY verified DESC, submitted_at DESC LIMIT 20"
         (Only (problemId :: T.Text)) :: ActionM [Solution]
       json solutions
     

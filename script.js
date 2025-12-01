@@ -1,8 +1,10 @@
 const API_BASE = '/api';
+// const API_BASE = 'http://localhost:3000/api';
 
 // Session management (replaces localStorage manipulation)
 let sessionToken = null;
 let currentUsername = null;
+let isVerifiedUser = false;
 const solvedProblems = new Set();
 let currentlyOpenProblem = null;
 
@@ -15,41 +17,87 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (savedToken && savedUsername) {
     sessionToken = savedToken;
     currentUsername = savedUsername;
+    isVerifiedUser = sessionStorage.getItem('verified') === 'true';
     document.getElementById('usernameInput').value = savedUsername;
     document.getElementById('usernameInput').disabled = true;
+    document.getElementById('passwordInput').disabled = true;
+    document.getElementById('loginButton').style.display = 'none';
     
-    // Verify session is still valid
-    await checkAllSubmissions();
+    // Verify session is still valid by making a test request
+    const isValid = await verifySession();
+    if (!isValid) {
+      // Session expired or server restarted - clear everything
+      showNotification('Session expired. Please log in again.', 'error');
+      clearSession();
+    } else {
+      // Valid session - check submissions
+      await checkAllSubmissions();
+    }
   }
   
   updateProgress();
-  
-  // Load solutions for all problems
-  document.querySelectorAll('.problem').forEach(problem => {
-    const problemId = problem.dataset.problemId;
-    loadSolutions(problemId);
-  });
 });
+
+// Verify if session is still valid
+async function verifySession() {
+  if (!sessionToken) return false;
+  
+  try {
+    // Make a lightweight request to check session validity
+    const response = await fetch(`${API_BASE}/verify-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verifyToken: sessionToken })
+    });
+    
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Clear session state
+function clearSession() {
+  sessionToken = null;
+  currentUsername = null;
+  isVerifiedUser = false;
+  sessionStorage.clear();
+  const usernameInput = document.getElementById('usernameInput');
+  const passwordInput = document.getElementById('passwordInput');
+  const loginButton = document.getElementById('loginButton');
+  usernameInput.value = '';
+  passwordInput.value = '';
+  usernameInput.disabled = false;
+  passwordInput.disabled = false;
+  loginButton.style.display = 'inline-block';
+  usernameInput.focus();
+}
 
 // Username handling - now requires login
 const usernameInput = document.getElementById('usernameInput');
+const passwordInput = document.getElementById('passwordInput');
 const usernameSaved = document.getElementById('usernameSaved');
+const loginButton = document.getElementById('loginButton');
+
+loginButton.addEventListener('click', async () => {
+  await loginUser();
+});
 
 usernameInput.addEventListener('keypress', async (e) => {
   if (e.key === 'Enter') {
-    await loginUser();
+    passwordInput.focus();
   }
 });
 
-usernameInput.addEventListener('blur', async () => {
-  const username = usernameInput.value.trim();
-  if (username && !sessionToken) {
+passwordInput.addEventListener('keypress', async (e) => {
+  if (e.key === 'Enter') {
     await loginUser();
   }
 });
 
 async function loginUser() {
   const username = usernameInput.value.trim();
+  const password = passwordInput.value.trim();
   
   if (!username) {
     showNotification('Please enter a username', 'error');
@@ -61,11 +109,17 @@ async function loginUser() {
     return;
   }
   
+  loginButton.disabled = true;
+  loginButton.innerHTML = '<span class="spinner"></span> Logging in...';
+  
   try {
     const response = await fetch(`${API_BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username })
+      body: JSON.stringify({ 
+        username,
+        password: password || null  // Send null if empty
+      })
     });
     
     const data = await response.json();
@@ -73,29 +127,45 @@ async function loginUser() {
     if (response.ok) {
       sessionToken = data.token;
       currentUsername = data.username;
+      isVerifiedUser = data.verified || false;
       
-      // Save to sessionStorage (cleared on browser close)
+      // Save to sessionStorage
       sessionStorage.setItem('sessionToken', sessionToken);
       sessionStorage.setItem('username', currentUsername);
+      sessionStorage.setItem('verified', isVerifiedUser);
       
       usernameInput.disabled = true;
+      passwordInput.disabled = true;
+      loginButton.style.display = 'none';
       
       if (data.newUser) {
-        showNotification(`Welcome, ${currentUsername}! Your username has been reserved.`, 'success');
+        if (isVerifiedUser) {
+          showNotification(`✓ Welcome, ${currentUsername}! Your account is verified.`, 'success');
+        } else {
+          showNotification(`Welcome, ${currentUsername}! - ⚠️ No password set!`, 'success');
+        }
       } else {
-        showNotification(`Welcome back, ${currentUsername}!`, 'success');
+        if (isVerifiedUser) {
+          showNotification(`✓ Welcome back, ${currentUsername}!`, 'success');
+        } else {
+          showNotification(`Welcome back, ${currentUsername}! ⚠️ Unprotected account.`, 'success');
+        }
       }
       
       // Check submissions with valid session
       await checkAllSubmissions();
     } else {
-      showNotification(data.error || 'Username already taken. Please choose another.', 'error');
+      showNotification(data.error || 'Login failed', 'error');
       sessionToken = null;
       currentUsername = null;
+      isVerifiedUser = false;
     }
   } catch (error) {
     showNotification('Error connecting to server', 'error');
     console.error('Login error:', error);
+  } finally {
+    loginButton.disabled = false;
+    loginButton.innerHTML = 'Login';
   }
 }
 
@@ -124,10 +194,16 @@ async function checkAllSubmissions() {
         submitButton.innerHTML = '✓ Already Submitted';
         submitButton.style.background = '#4ec9b0';
         submitButton.style.color = '#1e1e1e';
+        
+        // Load solutions for solved problems
+        loadSolutions(problemId);
       } else {
         problem.classList.remove('solved');
         const badge = problem.querySelector('.status-badge');
         badge.style.display = 'none';
+        
+        // Show locked message for unsolved
+        loadSolutions(problemId);
       }
     } catch (error) {
       console.error(`Error checking submission for ${problemId}:`, error);
@@ -214,10 +290,7 @@ async function runTests(problemId) {
 
     if (response.status === 401) {
       showNotification('Session expired. Please log in again.', 'error');
-      sessionToken = null;
-      currentUsername = null;
-      sessionStorage.clear();
-      usernameInput.disabled = false;
+      clearSession();
       return;
     }
 
@@ -315,10 +388,7 @@ async function submitSolution(problemId) {
 
     if (response.status === 401) {
       showNotification('Session expired. Please log in again.', 'error');
-      sessionToken = null;
-      currentUsername = null;
-      sessionStorage.clear();
-      usernameInput.disabled = false;
+      clearSession();
       submitButton.disabled = false;
       submitButton.innerHTML = 'Submit Solution';
       return;
@@ -377,6 +447,14 @@ async function loadSolutions(problemId) {
   const problem = document.querySelector(`[data-problem-id="${problemId}"]`);
   const solutionsContent = problem.querySelector('.solutions-content');
 
+  // Check if current user has submitted this problem
+  const hasSubmitted = solvedProblems.has(problemId);
+
+  if (!hasSubmitted) {
+    solutionsContent.innerHTML = '<div class="locked-message"><div class="locked-icon">🔒</div><div>Submit your solution to see other people\'s solutions!</div></div>';
+    return;
+  }
+
   try {
     const response = await fetch(`${API_BASE}/solutions/${problemId}`);
     const solutions = await response.json();
@@ -391,13 +469,15 @@ async function loadSolutions(problemId) {
       const code = sol.code || '';
       const username = sol.username || 'Anonymous';
       const submittedAt = sol.submittedAt;
+      const verified = sol.verified || false;
       
       const timestamp = submittedAt ? new Date(submittedAt).toLocaleString() : 'Unknown date';
+      const verifiedBadge = verified ? '<span class="verified-badge" title="Verified account with password">✓ Verified</span>' : '';
       
       html += `
         <div class="solution-card">
           <div class="solution-meta">
-            <span class="solution-author">by ${escapeHtml(username)}</span>
+            <span class="solution-author">by ${escapeHtml(username)} ${verifiedBadge}</span>
             <span class="solution-time">${timestamp}</span>
           </div>
           <div class="solution-code"><pre class="code">${escapeHtml(code)}</pre></div>
