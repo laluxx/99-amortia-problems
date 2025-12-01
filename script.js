@@ -1,5 +1,4 @@
 const API_BASE = '/api';
-// const API_BASE = 'http://localhost:3000/api';
 
 // Session management (replaces localStorage manipulation)
 let sessionToken = null;
@@ -7,6 +6,9 @@ let currentUsername = null;
 let isVerifiedUser = false;
 const solvedProblems = new Set();
 let currentlyOpenProblem = null;
+
+// Track empty test attempts per problem
+const emptyTestAttempts = new Map();
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -110,8 +112,8 @@ async function loginUser() {
   }
   
   loginButton.disabled = true;
-  loginButton.innerHTML = '<span class="spinner"></span> Logging in...';
-  
+
+    
   try {
     const response = await fetch(`${API_BASE}/login`, {
       method: 'POST',
@@ -256,20 +258,132 @@ async function runTests(problemId) {
   const submitButton = problem.querySelector('.btn-secondary');
   
   if (!code) {
+    // Track empty test attempts
+    const attempts = (emptyTestAttempts.get(problemId) || 0) + 1;
+    emptyTestAttempts.set(problemId, attempts);
+    
+    // Escalating anger messages
+    const messages = [
+      {
+        emoji: '👀',
+        title: 'Are you trying to test empty code?',
+        subtitle: 'Write some code first, then run the tests!'
+      },
+      {
+        emoji: '🤨',
+        title: 'Really? Empty code again?',
+        subtitle: 'I\'m starting to think you\'re doing this on purpose...'
+      },
+      {
+        emoji: '😐',
+        title: 'Okay, this is getting ridiculous.',
+        subtitle: 'Please. Just write. Some. Code.'
+      },
+      {
+        emoji: '😤',
+        title: 'ARE YOU KIDDING ME?!',
+        subtitle: 'HOW MANY TIMES DO I NEED TO TELL YOU?!'
+      },
+      {
+        emoji: '🤬',
+        title: 'I AM GOING TO LOSE IT',
+        subtitle: 'WRITE. CODE. IN. THE. EDITOR. THEN. CLICK. RUN.'
+      },
+      {
+        emoji: '💀',
+        title: 'You know what? Fine.',
+        subtitle: 'You win. I give up. Do whatever you want.'
+      },
+      {
+        emoji: '🪦',
+        title: '...',
+        subtitle: ''
+      }
+    ];
+    
+    let messageIndex = Math.min(attempts - 1, messages.length - 1);
+    let message = messages[messageIndex];
+    
+    // After tombstone (7th attempt), if they keep going (15+ attempts), roast them
+    if (attempts >= 15) {
+      const total = document.querySelectorAll('.problem').length;
+      const solved = solvedProblems.size;
+      message = {
+        emoji: '🔥',
+        title: 'You like to joke around a lot...',
+        subtitle: `...for someone who has only completed ${solved}/${total} problems. Go write some code.`
+      };
+    }
+    
+    // If they STILL keep clicking (16+ attempts), rickroll them
+    if (attempts >= 16) {
+      // Embed the video with audio playing in background
+      resultsDiv.style.display = 'block';
+      resultsDiv.innerHTML = `
+        <div style="padding: 20px; text-align: center;">
+          <div style="font-size: 32px; margin-bottom: 12px;">🎵</div>
+          <div style="color: #dcdcaa; font-size: 14px; font-weight: 600; margin-bottom: 16px;">
+            You know the rules, and so do I...
+          </div>
+          <video id="rickrollVideo" width="100%" style="max-width: 560px; border-radius: 8px; pointer-events: none;" loop muted disablepictureinpicture>
+            <source src="https://ia804503.us.archive.org/15/items/kikTXNL6MvX6ZpRXM/kikTXNL6MvX6ZpRXM.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+          <audio id="rickrollAudio" loop style="display: none;">
+            <source src="https://ia804503.us.archive.org/15/items/kikTXNL6MvX6ZpRXM/kikTXNL6MvX6ZpRXM.mp4" type="audio/mp4">
+          </audio>
+          <div style="color: #858585; font-size: 12px; margin-top: 12px;">
+            Maybe this will inspire you to actually write some code.
+          </div>
+        </div>
+      `;
+      
+      // Sync audio with video
+      setTimeout(() => {
+        const video = document.getElementById('rickrollVideo');
+        const audio = document.getElementById('rickrollAudio');
+        
+        if (video && audio) {
+          // Wait for both to be ready
+          Promise.all([
+            new Promise(resolve => {
+              if (video.readyState >= 3) resolve();
+              else video.addEventListener('canplay', resolve, { once: true });
+            }),
+            new Promise(resolve => {
+              if (audio.readyState >= 3) resolve();
+              else audio.addEventListener('canplay', resolve, { once: true });
+            })
+          ]).then(() => {
+            // Start both at the exact same time
+            video.currentTime = 0;
+            audio.currentTime = 0;
+            video.play();
+            audio.play();
+          });
+        }
+      }, 100);
+      
+      return;
+    }
+    
     resultsDiv.style.display = 'block';
     resultsDiv.innerHTML = `
       <div style="padding: 20px; text-align: center;">
-        <div style="font-size: 32px; margin-bottom: 12px;">👀</div>
+        <div style="font-size: 32px; margin-bottom: 12px;">${message.emoji}</div>
         <div style="color: #dcdcaa; font-size: 14px; font-weight: 600;">
-          Are you trying to test empty code? What do you expect?
+          ${message.title}
         </div>
-        <div style="color: #858585; font-size: 12px; margin-top: 8px;">
-          Write some code first, then run the tests!
-        </div>
+        ${message.subtitle ? `<div style="color: #858585; font-size: 12px; margin-top: 8px;">
+          ${message.subtitle}
+        </div>` : ''}
       </div>
     `;
     return;
   }
+  
+  // Reset empty test counter when actual code is provided
+  emptyTestAttempts.set(problemId, 0);
   
   runButton.disabled = true;
   runButton.innerHTML = '<span class="spinner"></span> Running...';

@@ -391,7 +391,8 @@ main = do
     get "/" $ file "problems.html"
     get "/style.css" $ file "style.css"
     get "/script.js" $ file "script.js"
-    
+    get "/logo.png" $ file "logo.png"    
+
     -- Login/Session endpoint (now separate from registration)
     post "/api/login" $ do
       RegisterRequest username mPassword <- jsonData
