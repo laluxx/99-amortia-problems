@@ -1,58 +1,109 @@
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
-// Persistent storage using localStorage
+// Session management (replaces localStorage manipulation)
+let sessionToken = null;
+let currentUsername = null;
 const solvedProblems = new Set();
-const testedProblems = new Set();
-let username = 'Anonymous';
 let currentlyOpenProblem = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load username from localStorage
-  const savedUsername = localStorage.getItem('username');
-  const usernameInput = document.getElementById('usernameInput');
-  if (savedUsername) {
-    username = savedUsername;
-    usernameInput.value = savedUsername;
+  // Try to restore session from sessionStorage (more secure than localStorage)
+  const savedToken = sessionStorage.getItem('sessionToken');
+  const savedUsername = sessionStorage.getItem('username');
+  
+  if (savedToken && savedUsername) {
+    sessionToken = savedToken;
+    currentUsername = savedUsername;
+    document.getElementById('usernameInput').value = savedUsername;
+    document.getElementById('usernameInput').disabled = true;
+    
+    // Verify session is still valid
+    await checkAllSubmissions();
   }
-  
-  // Load tested problems from localStorage (these don't need server verification)
-  const savedTested = localStorage.getItem('testedProblems');
-  if (savedTested) {
-    const tested = JSON.parse(savedTested);
-    tested.forEach(id => testedProblems.add(id));
-  }
-  
-  // Check for already submitted solutions on page load
-  // This will verify against the server and update solvedProblems
-  await checkAllSubmissions();
-  
-  // Enable submit buttons for tested problems that aren't solved
-  testedProblems.forEach(problemId => {
-    if (!solvedProblems.has(problemId)) {
-      const problem = document.querySelector(`[data-problem-id="${problemId}"]`);
-      if (problem) {
-        const submitButton = problem.querySelector('.btn-secondary');
-        submitButton.disabled = false;
-      }
-    }
-  });
   
   updateProgress();
   
-  // Load all solutions for solved problems
+  // Load solutions for all problems
   document.querySelectorAll('.problem').forEach(problem => {
     const problemId = problem.dataset.problemId;
     loadSolutions(problemId);
   });
 });
 
-// Check if user has already submitted each problem
-async function checkAllSubmissions() {
-  const problems = document.querySelectorAll('.problem');
-  const currentUsername = getUsername();
+// Username handling - now requires login
+const usernameInput = document.getElementById('usernameInput');
+const usernameSaved = document.getElementById('usernameSaved');
+
+usernameInput.addEventListener('keypress', async (e) => {
+  if (e.key === 'Enter') {
+    await loginUser();
+  }
+});
+
+usernameInput.addEventListener('blur', async () => {
+  const username = usernameInput.value.trim();
+  if (username && !sessionToken) {
+    await loginUser();
+  }
+});
+
+async function loginUser() {
+  const username = usernameInput.value.trim();
   
-  // Clear solvedProblems - we'll rebuild it from server data
+  if (!username) {
+    showNotification('Please enter a username', 'error');
+    return;
+  }
+  
+  if (username === 'Anonymous') {
+    showNotification('Please choose a unique username', 'error');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      sessionToken = data.token;
+      currentUsername = data.username;
+      
+      // Save to sessionStorage (cleared on browser close)
+      sessionStorage.setItem('sessionToken', sessionToken);
+      sessionStorage.setItem('username', currentUsername);
+      
+      usernameInput.disabled = true;
+      
+      if (data.newUser) {
+        showNotification(`Welcome, ${currentUsername}! Your username has been reserved.`, 'success');
+      } else {
+        showNotification(`Welcome back, ${currentUsername}!`, 'success');
+      }
+      
+      // Check submissions with valid session
+      await checkAllSubmissions();
+    } else {
+      showNotification(data.error || 'Username already taken. Please choose another.', 'error');
+      sessionToken = null;
+      currentUsername = null;
+    }
+  } catch (error) {
+    showNotification('Error connecting to server', 'error');
+    console.error('Login error:', error);
+  }
+}
+
+// Check submissions from server
+async function checkAllSubmissions() {
+  if (!currentUsername) return;
+  
+  const problems = document.querySelectorAll('.problem');
   solvedProblems.clear();
   
   for (const problem of problems) {
@@ -68,14 +119,12 @@ async function checkAllSubmissions() {
         const badge = problem.querySelector('.status-badge');
         badge.style.display = 'inline-block';
         
-        // Disable the submit button and show it's already submitted
         const submitButton = problem.querySelector('.btn-secondary');
         submitButton.disabled = true;
         submitButton.innerHTML = '✓ Already Submitted';
         submitButton.style.background = '#4ec9b0';
         submitButton.style.color = '#1e1e1e';
       } else {
-        // Make sure it's not marked as solved if server says it's not
         problem.classList.remove('solved');
         const badge = problem.querySelector('.status-badge');
         badge.style.display = 'none';
@@ -85,61 +134,24 @@ async function checkAllSubmissions() {
     }
   }
   
-  // Save the verified solved problems to localStorage
-  saveSolvedProblems();
   updateProgress();
-}
-
-// Username handling
-const usernameInput = document.getElementById('usernameInput');
-const usernameSaved = document.getElementById('usernameSaved');
-
-usernameInput.addEventListener('input', () => {
-  const newUsername = usernameInput.value.trim() || 'Anonymous';
-  username = newUsername;
-  localStorage.setItem('username', newUsername);
-  
-  usernameSaved.style.display = 'inline';
-  setTimeout(() => {
-    usernameSaved.style.display = 'none';
-  }, 2000);
-  
-  // Re-check submissions with new username
-  checkAllSubmissions();
-});
-
-function getUsername() {
-  return username;
-}
-
-// Save to localStorage
-function saveSolvedProblems() {
-  localStorage.setItem('solvedProblems', JSON.stringify([...solvedProblems]));
-}
-
-function saveTestedProblems() {
-  localStorage.setItem('testedProblems', JSON.stringify([...testedProblems]));
 }
 
 function toggleProblem(problemId) {
   const problem = document.querySelector(`[data-problem-id="${problemId}"]`);
   const content = problem.querySelector('.problem-content');
   
-  // Close previously open problem if it's different
   if (currentlyOpenProblem && currentlyOpenProblem !== problemId) {
     const prevProblem = document.querySelector(`[data-problem-id="${currentlyOpenProblem}"]`);
     const prevContent = prevProblem.querySelector('.problem-content');
     prevContent.classList.remove('expanded');
   }
   
-  // Toggle current problem
   const isExpanding = !content.classList.contains('expanded');
   content.classList.toggle('expanded');
   
-  // Update tracking
   currentlyOpenProblem = isExpanding ? problemId : null;
   
-  // Smooth scroll to problem if expanding and not fully visible
   if (isExpanding) {
     setTimeout(() => {
       const rect = problem.getBoundingClientRect();
@@ -152,15 +164,21 @@ function toggleProblem(problemId) {
   }
 }
 
-// Run tests
+// Run tests - now requires session
 async function runTests(problemId) {
+  // Check if logged in
+  if (!sessionToken) {
+    showNotification('Please log in with a username first', 'error');
+    document.getElementById('usernameInput').focus();
+    return;
+  }
+  
   const problem = document.querySelector(`[data-problem-id="${problemId}"]`);
   const code = problem.querySelector('.editor').value.trim();
   const resultsDiv = problem.querySelector('.test-results');
   const runButton = problem.querySelector('.btn-primary');
   const submitButton = problem.querySelector('.btn-secondary');
   
-  // Check for empty input
   if (!code) {
     resultsDiv.style.display = 'block';
     resultsDiv.innerHTML = `
@@ -177,7 +195,6 @@ async function runTests(problemId) {
     return;
   }
   
-  // Disable button and show loading
   runButton.disabled = true;
   runButton.innerHTML = '<span class="spinner"></span> Running...';
   
@@ -188,8 +205,21 @@ async function runTests(problemId) {
     const response = await fetch(`${API_BASE}/test`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ problemId, code })
+      body: JSON.stringify({ 
+        problemId, 
+        code,
+        sessionToken 
+      })
     });
+
+    if (response.status === 401) {
+      showNotification('Session expired. Please log in again.', 'error');
+      sessionToken = null;
+      currentUsername = null;
+      sessionStorage.clear();
+      usernameInput.disabled = false;
+      return;
+    }
 
     const data = await response.json();
     
@@ -211,10 +241,7 @@ async function runTests(problemId) {
     resultsDiv.innerHTML = html;
 
     if (data.allPassed) {
-      testedProblems.add(problemId);
-      saveTestedProblems();
-      
-      // Check if already submitted before enabling submit button
+      // Check if already submitted
       const hasSubmitted = await checkIfAlreadySubmitted(problemId);
       
       if (!hasSubmitted) {
@@ -228,8 +255,6 @@ async function runTests(problemId) {
         resultsDiv.innerHTML += '<div style="margin-top: 16px; padding: 12px; background: rgba(78, 201, 176, 0.1); border-left: 3px solid #4ec9b0; border-radius: 3px; color: #4ec9b0; font-weight: 600;">✓ All tests passed! (You have already submitted a solution for this problem)</div>';
       }
     } else {
-      testedProblems.delete(problemId);
-      saveTestedProblems();
       submitButton.disabled = true;
       submitButton.classList.remove('pulse');
     }
@@ -242,10 +267,10 @@ async function runTests(problemId) {
   }
 }
 
-// Check if user already submitted this problem
 async function checkIfAlreadySubmitted(problemId) {
+  if (!currentUsername) return false;
+  
   try {
-    const currentUsername = getUsername();
     const response = await fetch(`${API_BASE}/check-submission/${problemId}/${currentUsername}`);
     const data = await response.json();
     return data.hasSubmitted;
@@ -255,19 +280,17 @@ async function checkIfAlreadySubmitted(problemId) {
   }
 }
 
-// Submit solution
+// Submit solution - server validates tests again
 async function submitSolution(problemId) {
+  if (!sessionToken) {
+    showNotification('Please log in first', 'error');
+    return;
+  }
+  
   const problem = document.querySelector(`[data-problem-id="${problemId}"]`);
   const code = problem.querySelector('.editor').value;
   const submitButton = problem.querySelector('.btn-secondary');
 
-  // Check if tests were passed
-  if (!testedProblems.has(problemId)) {
-    showNotification('Please run and pass all tests first!', 'error');
-    return;
-  }
-
-  // Check if already submitted
   const hasSubmitted = await checkIfAlreadySubmitted(problemId);
   if (hasSubmitted) {
     showNotification('You have already submitted a solution for this problem', 'error');
@@ -284,26 +307,41 @@ async function submitSolution(problemId) {
       body: JSON.stringify({ 
         problemId, 
         code,
-        username: getUsername()
+        sessionToken
       })
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      showNotification('Session expired. Please log in again.', 'error');
+      sessionToken = null;
+      currentUsername = null;
+      sessionStorage.clear();
+      usernameInput.disabled = false;
+      submitButton.disabled = false;
+      submitButton.innerHTML = 'Submit Solution';
+      return;
+    }
+
+    if (response.status === 403) {
+      showNotification('Tests must pass on the server before submission. Please run tests again.', 'error');
+      submitButton.disabled = false;
+      submitButton.innerHTML = 'Submit Solution';
+      return;
+    }
 
     if (response.ok && data.success) {
       problem.classList.add('solved');
       const badge = problem.querySelector('.status-badge');
       badge.style.display = 'inline-block';
       solvedProblems.add(problemId);
-      saveSolvedProblems();
       updateProgress();
       
-      // Update button to show it's submitted
       submitButton.innerHTML = '✓ Submitted';
       submitButton.style.background = '#4ec9b0';
       submitButton.style.color = '#1e1e1e';
       
-      // Confetti celebration!
       confetti({
         particleCount: 100,
         spread: 70,
@@ -312,7 +350,6 @@ async function submitSolution(problemId) {
       
       showNotification('Solution submitted successfully! 🎉', 'success');
       
-      // Load solutions after a brief delay
       setTimeout(() => loadSolutions(problemId), 500);
     } else {
       showNotification(data.error || 'Error submitting solution.', 'error');
@@ -326,7 +363,6 @@ async function submitSolution(problemId) {
   }
 }
 
-// Show notification
 function showNotification(message, type) {
   const notification = document.getElementById('notification');
   notification.textContent = message;
@@ -350,7 +386,6 @@ async function loadSolutions(problemId) {
       return;
     }
 
-    // Build solutions HTML
     let html = '';
     solutions.forEach(sol => {
       const code = sol.code || '';
@@ -376,7 +411,6 @@ async function loadSolutions(problemId) {
   }
 }
 
-// Update progress bar
 function updateProgress() {
   const total = document.querySelectorAll('.problem').length;
   const solved = solvedProblems.size;

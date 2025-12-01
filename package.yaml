@@ -48,3 +48,10 @@ executables:
     - unix
     - wai-cors
     - wai-extra
+    # Security dependencies
+    - cryptohash-sha256
+    - base64-bytestring
+    - random
+    - time
+    - containers
+    - bytestring

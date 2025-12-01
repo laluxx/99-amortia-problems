@@ -14,10 +14,12 @@ body {
 
 .github-corner {
     position: absolute;
-    top: 185px; /* Move down */
-    right: auto;
-    left: 150px; /* Move left */
-    transform: rotate(-45deg); /* Make it vertical */
+    bottom: 57px; /* Distance from bottom of intro div */
+    right: 60px;  /* Distance from right of intro div */
+    top: auto;
+    left: auto;
+    transform: rotate(-45deg);
+    transform-style: preserve-3d;
 }
 
 .notification {
@@ -133,6 +135,7 @@ h1 {
 
 
 .intro {
+  position: relative; /* This makes the GitHub corner position relative to this div */
   background: #252526;
   border-left: 3px solid #c586c0;
   padding: 20px;
