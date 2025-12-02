@@ -6,8 +6,6 @@ module Main (main) where
 
 import Web.Scotty
 import Network.HTTP.Types.Status (status409, status403, status401)
--- import Data.Aeson (FromJSON, ToJSON(..), object, (.=), pairs, eitherDecodeFileStrict)
--- import Data.Aeson (FromJSON, ToJSON(..), object, (.=), pairs, eitherDecodeFileStrict, withObject, (.:))
 import Data.Aeson (FromJSON(..), ToJSON(..), object, (.=), pairs, eitherDecodeFileStrict, withObject, (.:))
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -345,6 +343,42 @@ hasUserSubmitted conn problemId uname = do
     [Only count] -> return (count > 0)
     _ -> return False
 
+-- NEW: Get all submitted solutions for a user (for imports)
+getUserSolutions :: Connection -> T.Text -> IO [Solution]
+getUserSolutions conn username = do
+  query conn
+    "SELECT problem_id, code, username, submitted_at, verified \
+    \FROM solutions WHERE username = ? \
+    \ORDER BY submitted_at ASC"
+    (Only username)
+
+-- NEW: Extract function definitions from code
+extractFunctions :: T.Text -> T.Text
+extractFunctions code = 
+  T.unlines $ filter isFunction $ T.lines code
+  where
+    isFunction line = "defn " `T.isPrefixOf` T.strip line || isContinuation line
+    isContinuation line = 
+      let stripped = T.strip line
+      in not (T.null stripped) && 
+         not ("defn " `T.isPrefixOf` stripped) &&
+         (T.any (`elem` ['{', '}', '-', '|', ',']) stripped || 
+          T.any (`elem` ['a'..'z']) stripped)
+
+-- NEW: Build library code from previous solutions
+buildLibraryCode :: Connection -> T.Text -> T.Text -> IO T.Text
+buildLibraryCode conn username currentProblemId = do
+  solutions <- getUserSolutions conn username
+  
+  -- Filter out the current problem to avoid conflicts
+  let previousSolutions = filter (\s -> solutionProblemId s /= currentProblemId) solutions
+  
+  -- Extract all function definitions
+  let functionDefs = map (extractFunctions . solutionCode) previousSolutions
+  
+  -- Combine all function definitions
+  return $ T.intercalate "\n\n" $ filter (not . T.null) functionDefs
+
 -- Compiler Integration
 runAmortiaCode :: T.Text -> T.Text -> T.Text -> IO (Either T.Text T.Text)
 runAmortiaCode problemId testName code = do
@@ -396,24 +430,29 @@ extractErlangError output =
      then "Compilation error (Erlang)"
      else "Compilation error:\n" <> T.strip errorMsg
 
--- Run Tests
-runTests :: TestRequest -> IO (Either String TestResponse)
-runTests (TestRequest pid cod _) = do
+-- Run Tests (MODIFIED to include library code)
+runTests :: Connection -> TestRequest -> T.Text -> IO (Either String TestResponse)
+runTests conn (TestRequest pid cod _) username = do
   mProblem <- getProblemById pid
   case mProblem of
     Nothing -> return $ Left "Problem not found"
     Just problem -> do
       cleanTestDirectory pid
       
+      -- Build library from previous solutions
+      libraryCode <- buildLibraryCode conn username pid
+      
       let testCases = problemTestCases problem
-      results <- mapM (runSingleTest pid cod) (zip [1..] testCases)
+      results <- mapM (runSingleTest conn pid cod libraryCode username) (zip [1..] testCases)
       return $ Right $ TestResponse results (all testPassed results)
 
-runSingleTest :: T.Text -> T.Text -> (Int, TestCase) -> IO TestResult
-runSingleTest problemId userCode (testNum, testCase) = do
+runSingleTest :: Connection -> T.Text -> T.Text -> T.Text -> T.Text -> (Int, TestCase) -> IO TestResult
+runSingleTest conn problemId userCode libraryCode username (testNum, testCase) = do
   let testName = T.pack $ T.unpack problemId ++ "_test_" ++ show testNum
   
-  let fullCode = userCode <> "\n\ndefn main :: () {\n    " <> testCaseCall testCase <> "\n    halt 0\n}"
+  -- Combine library code with user code and test
+  let fullCode = libraryCode <> "\n\n" <> userCode <> "\n\ndefn main :: () {\n    " <> testCaseCall testCase <> "\n    halt 0\n}"
+  
   result <- runAmortiaCode problemId testName fullCode
   
   return $ case result of
@@ -526,7 +565,7 @@ main = do
           json $ object ["valid" .= False]
         Just _ -> json $ object ["valid" .= True]
     
-    -- Test endpoint with session validation
+    -- Test endpoint with session validation (MODIFIED)
     post "/api/test" $ do
       req <- jsonData :: ActionM TestRequest
       let TestRequest pid cod mToken = req
@@ -541,8 +580,9 @@ main = do
             Nothing -> do
               status status401
               json $ object ["error" .= ("Invalid or expired session" :: T.Text)]
-            Just _ -> do
-              testResult <- liftIO $ runTests req
+            Just session -> do
+              -- Pass username to runTests for library code
+              testResult <- liftIO $ runTests conn req (sessionUsername session)
               
               case testResult of
                 Left err -> do
@@ -562,7 +602,7 @@ main = do
       hasSubmitted <- liftIO $ hasUserSubmitted conn problemId username
       json $ object ["hasSubmitted" .= hasSubmitted]
     
-    -- Submit solution with server-side validation
+    -- Submit solution with server-side validation (MODIFIED)
     post "/api/submit" $ do
       req <- jsonData :: ActionM SubmitRequest
       let SubmitRequest pid code _ mToken = req
@@ -584,8 +624,10 @@ main = do
                 , "error" .= ("Invalid or expired session" :: T.Text)
                 ]
             Just session -> do
-              -- SERVER-SIDE VALIDATION: Re-run tests to verify
-              testResult <- liftIO $ runTests (TestRequest pid code Nothing)
+              let username = sessionUsername session
+              
+              -- SERVER-SIDE VALIDATION: Re-run tests to verify (with library code)
+              testResult <- liftIO $ runTests conn (TestRequest pid code Nothing) username
               
               case testResult of
                 Left err -> do
@@ -603,8 +645,6 @@ main = do
                         , "error" .= ("Tests must pass before submission" :: T.Text)
                         ]
                     else do
-                      let username = sessionUsername session
-                      
                       -- Check if already submitted
                       alreadySubmitted <- liftIO $ hasUserSubmitted conn pid username
                       
