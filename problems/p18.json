@@ -1,0 +1,30 @@
+{
+  "problemId": "p18",
+  "problemNumber": "P18",
+  "problemDifficulty": "medium",
+  "problemTitle": "Extract a slice from a list",
+  "problemDescription": "Given two indices I and K, extract the slice containing elements from index I (inclusive) to index K (exclusive). Indices start at 0.",
+  "problemExample": {
+    "code": "slice 3 7 [1,2,3,4,5,6,7,8,9,10]",
+    "result": "[4,5,6,7]"
+  },
+  "problemFunctionSignature": "defn slice :: Int -> Int -> [a] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: slice 3 7 [1,2,3,4,5,6,7,8,9,10]",
+      "testCaseCall": "display slice 3 7 [1,2,3,4,5,6,7,8,9,10]",
+      "testCaseExpected": "[4,5,6,7]"
+    },
+    {
+      "testCaseName": "Test 2: slice 3 7 [1,2,3,4]",
+      "testCaseCall": "display slice 3 7 [1,2,3,4]",
+      "testCaseExpected": "[4]"
+    },
+    {
+      "testCaseName": "Test 3: slice 0 3 [1,2,3,4,5]",
+      "testCaseCall": "display slice 0 3 [1,2,3,4,5]",
+      "testCaseExpected": "[1,2,3]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

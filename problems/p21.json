@@ -1,0 +1,30 @@
+{
+  "problemId": "p21",
+  "problemNumber": "P21",
+  "problemDifficulty": "easy",
+  "problemTitle": "Insert an element at a position",
+  "problemDescription": "Insert an element at a given position (0-indexed) into a list.",
+  "problemExample": {
+    "code": "insertAt 3 2 [1,2,4,5,6]",
+    "result": "[1,2,3,4,5,6]"
+  },
+  "problemFunctionSignature": "defn insertAt :: a -> Int -> [a] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: insertAt 3 2 [1,2,4,5,6]",
+      "testCaseCall": "display insertAt 3 2 [1,2,4,5,6]",
+      "testCaseExpected": "[1,2,3,4,5,6]"
+    },
+    {
+      "testCaseName": "Test 2: insertAt 0 0 [1,2,3]",
+      "testCaseCall": "display insertAt 0 0 [1,2,3]",
+      "testCaseExpected": "[0,1,2,3]"
+    },
+    {
+      "testCaseName": "Test 3: insertAt 4 3 [1,2,3]",
+      "testCaseCall": "display insertAt 4 3 [1,2,3]",
+      "testCaseExpected": "[1,2,3,4]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

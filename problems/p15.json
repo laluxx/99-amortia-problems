@@ -1,0 +1,30 @@
+{
+  "problemId": "p15",
+  "problemNumber": "P15",
+  "problemDifficulty": "medium",
+  "problemTitle": "Duplicate elements N times",
+  "problemDescription": "Duplicate the elements of a list a given number of times.",
+  "problemExample": {
+    "code": "duplicateN 3 [1,2,3]",
+    "result": "[1,1,1,2,2,2,3,3,3]"
+  },
+  "problemFunctionSignature": "defn duplicateN :: Int -> [a] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: duplicateN 3 [1,2,3]",
+      "testCaseCall": "display duplicateN 3 [1,2,3]",
+      "testCaseExpected": "[1,1,1,2,2,2,3,3,3]"
+    },
+    {
+      "testCaseName": "Test 2: duplicateN 2 [1,2]",
+      "testCaseCall": "display duplicateN 2 [1,2]",
+      "testCaseExpected": "[1,1,2,2]"
+    },
+    {
+      "testCaseName": "Test 3: duplicateN 0 [1,2,3]",
+      "testCaseCall": "display duplicateN 0 [1,2,3]",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

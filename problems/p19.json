@@ -1,0 +1,30 @@
+{
+  "problemId": "p19",
+  "problemNumber": "P19",
+  "problemDifficulty": "medium",
+  "problemTitle": "Rotate a list N places to the left",
+  "problemDescription": "Rotate a list N places to the left. Use negative values to rotate right.",
+  "problemExample": {
+    "code": "rotate 3 [1,2,3,4,5,6,7]",
+    "result": "[4,5,6,7,1,2,3]"
+  },
+  "problemFunctionSignature": "defn rotate :: Int -> [a] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: rotate 3 [1,2,3,4,5,6,7]",
+      "testCaseCall": "display rotate 3 [1,2,3,4,5,6,7]",
+      "testCaseExpected": "[4,5,6,7,1,2,3]"
+    },
+    {
+      "testCaseName": "Test 2: rotate 0 [1,2,3]",
+      "testCaseCall": "display rotate 0 [1,2,3]",
+      "testCaseExpected": "[1,2,3]"
+    },
+    {
+      "testCaseName": "Test 3: rotate 1 [1,2,3,4]",
+      "testCaseCall": "display rotate 1 [1,2,3,4]",
+      "testCaseExpected": "[2,3,4,1]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

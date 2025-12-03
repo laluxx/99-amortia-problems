@@ -1,0 +1,30 @@
+{
+  "problemId": "p09",
+  "problemNumber": "P09",
+  "problemDifficulty": "medium",
+  "problemTitle": "Pack consecutive duplicates into sublists",
+  "problemDescription": "If a list contains repeated elements they should be placed in separate sublists.",
+  "problemExample": {
+    "code": "pack [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+    "result": "[[1,1,1,1],[2],[3,3],[1,1],[4],[5,5,5,5]]"
+  },
+  "problemFunctionSignature": "defn pack :: [a] -> [[a]] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: pack [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+      "testCaseCall": "display pack [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+      "testCaseExpected": "[[1,1,1,1],[2],[3,3],[1,1],[4],[5,5,5,5]]"
+    },
+    {
+      "testCaseName": "Test 2: pack [1,2,3]",
+      "testCaseCall": "display pack [1,2,3]",
+      "testCaseExpected": "[[1],[2],[3]]"
+    },
+    {
+      "testCaseName": "Test 3: pack []",
+      "testCaseCall": "display pack []",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

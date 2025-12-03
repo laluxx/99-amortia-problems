@@ -1,0 +1,30 @@
+{
+  "problemId": "p16",
+  "problemNumber": "P16",
+  "problemDifficulty": "medium",
+  "problemTitle": "Drop every Nth element",
+  "problemDescription": "Drop every Nth element from a list. Elements are numbered starting from 1.",
+  "problemExample": {
+    "code": "drop 3 [1,2,3,4,5,6,7,8]",
+    "result": "[1,2,4,5,7,8]"
+  },
+  "problemFunctionSignature": "defn drop :: Int -> [a] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: drop 3 [1,2,3,4,5,6,7,8]",
+      "testCaseCall": "display drop 3 [1,2,3,4,5,6,7,8]",
+      "testCaseExpected": "[1,2,4,5,7,8]"
+    },
+    {
+      "testCaseName": "Test 2: drop 2 [1,2,3,4]",
+      "testCaseCall": "display drop 2 [1,2,3,4]",
+      "testCaseExpected": "[1,3]"
+    },
+    {
+      "testCaseName": "Test 3: drop 5 [1,2,3]",
+      "testCaseCall": "display drop 5 [1,2,3]",
+      "testCaseExpected": "[1,2,3]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

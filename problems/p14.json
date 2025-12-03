@@ -1,0 +1,30 @@
+{
+  "problemId": "p14",
+  "problemNumber": "P14",
+  "problemDifficulty": "easy",
+  "problemTitle": "Duplicate the elements of a list",
+  "problemDescription": "Create a new list where each element from the original list appears twice consecutively.",
+  "problemExample": {
+    "code": "duplicate [1,2,3,4]",
+    "result": "[1,1,2,2,3,3,4,4]"
+  },
+  "problemFunctionSignature": "defn duplicate :: [a] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: duplicate [1,2,3,4]",
+      "testCaseCall": "display duplicate [1,2,3,4]",
+      "testCaseExpected": "[1,1,2,2,3,3,4,4]"
+    },
+    {
+      "testCaseName": "Test 2: duplicate []",
+      "testCaseCall": "display duplicate []",
+      "testCaseExpected": "[]"
+    },
+    {
+      "testCaseName": "Test 3: duplicate [1]",
+      "testCaseCall": "display duplicate [1]",
+      "testCaseExpected": "[1,1]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

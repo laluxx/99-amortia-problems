@@ -1,0 +1,30 @@
+{
+  "problemId": "p10",
+  "problemNumber": "P10",
+  "problemDifficulty": "easy",
+  "problemTitle": "Run-length encoding of a list",
+  "problemDescription": "Use the result of problem P09 to implement run-length encoding. Consecutive duplicates of elements are encoded as lists [N, E] where N is the number of duplicates of the element E.",
+  "problemExample": {
+    "code": "encode [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+    "result": "[[4,1],[1,2],[2,3],[2,1],[1,4],[4,5]]"
+  },
+  "problemFunctionSignature": "defn encode :: [a] -> [[Int]] {\n    -- Your solution here\n    -- Hint: Use pack from P09\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: encode [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+      "testCaseCall": "display encode [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+      "testCaseExpected": "[[4,1],[1,2],[2,3],[2,1],[1,4],[4,5]]"
+    },
+    {
+      "testCaseName": "Test 2: encode [1,2,3]",
+      "testCaseCall": "display encode [1,2,3]",
+      "testCaseExpected": "[[1,1],[1,2],[1,3]]"
+    },
+    {
+      "testCaseName": "Test 3: encode []",
+      "testCaseCall": "display encode []",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

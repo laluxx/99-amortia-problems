@@ -1,0 +1,25 @@
+{
+  "problemId": "p11",
+  "problemNumber": "P11",
+  "problemDifficulty": "easy",
+  "problemTitle": "Modified run-length encoding",
+  "problemDescription": "Modify the result of problem P10 in such a way that if an element has no duplicates it is simply copied into the result list as a single-element list. Only elements with duplicates are transferred as [N, E] terms.",
+  "problemExample": {
+    "code": "encodeModified [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+    "result": "[[4,1],[2],[2,3],[2,1],[4],[4,5]]"
+  },
+  "problemFunctionSignature": "defn encodeModified :: [a] -> [[Int]] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: encodeModified [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+      "testCaseCall": "display encodeModified [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+      "testCaseExpected": "[[4,1],[2],[2,3],[2,1],[4],[4,5]]"
+    },
+    {
+      "testCaseName": "Test 2: encodeModified [1,2,3]",
+      "testCaseCall": "display encodeModified [1,2,3]",
+      "testCaseExpected": "[[1],[2],[3]]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

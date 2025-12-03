@@ -1,0 +1,30 @@
+{
+  "problemId": "p08",
+  "problemNumber": "P08",
+  "problemDifficulty": "medium",
+  "problemTitle": "Eliminate consecutive duplicates",
+  "problemDescription": "If a list contains repeated elements they should be replaced with a single copy of the element. The order of the elements should not be changed.",
+  "problemExample": {
+    "code": "compress [1,1,1,2,2,3,4,4,4,4,4,4]",
+    "result": "[1,2,3,4]"
+  },
+  "problemFunctionSignature": "defn compress :: [a] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: compress [1,1,1,2,2,3,4,4,4,4,4,4]",
+      "testCaseCall": "display compress [1,1,1,2,2,3,4,4,4,4,4,4]",
+      "testCaseExpected": "[1,2,3,4]"
+    },
+    {
+      "testCaseName": "Test 2: compress [1,2,3,4]",
+      "testCaseCall": "display compress [1,2,3,4]",
+      "testCaseExpected": "[1,2,3,4]"
+    },
+    {
+      "testCaseName": "Test 3: compress []",
+      "testCaseCall": "display compress []",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

@@ -1,0 +1,30 @@
+{
+  "problemId": "p25",
+  "problemNumber": "P25",
+  "problemDifficulty": "medium",
+  "problemTitle": "Identity permutation",
+  "problemDescription": "For this simplified version, just return the list as-is. (The original problem generates a random permutation which is hard to test deterministically)",
+  "problemExample": {
+    "code": "permute [1,2,3,4,5]",
+    "result": "[1,2,3,4,5]"
+  },
+  "problemFunctionSignature": "defn permute :: [a] -> [a] {\n    -- Your solution here\n    -- Just return the input list\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: permute [1,2,3,4,5]",
+      "testCaseCall": "display permute [1,2,3,4,5]",
+      "testCaseExpected": "[1,2,3,4,5]"
+    },
+    {
+      "testCaseName": "Test 2: permute []",
+      "testCaseCall": "display permute []",
+      "testCaseExpected": "[]"
+    },
+    {
+      "testCaseName": "Test 3: permute [1]",
+      "testCaseCall": "display permute [1]",
+      "testCaseExpected": "[1]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

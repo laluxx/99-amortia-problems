@@ -1,0 +1,25 @@
+{
+  "problemId": "p13",
+  "problemNumber": "P13",
+  "problemDifficulty": "medium",
+  "problemTitle": "Run-length encoding (direct solution)",
+  "problemDescription": "Implement run-length encoding directly. Don't use other methods you've written; do all the work directly.",
+  "problemExample": {
+    "code": "encodeDirect [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+    "result": "[[4,1],[1,2],[2,3],[2,1],[1,4],[4,5]]"
+  },
+  "problemFunctionSignature": "defn encodeDirect :: [a] -> [[Int]] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: encodeDirect [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+      "testCaseCall": "display encodeDirect [1,1,1,1,2,3,3,1,1,4,5,5,5,5]",
+      "testCaseExpected": "[[4,1],[1,2],[2,3],[2,1],[1,4],[4,5]]"
+    },
+    {
+      "testCaseName": "Test 2: encodeDirect [1,2,3]",
+      "testCaseCall": "display encodeDirect [1,2,3]",
+      "testCaseExpected": "[[1,1],[1,2],[1,3]]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

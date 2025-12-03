@@ -1,0 +1,30 @@
+{
+  "problemId": "p23",
+  "problemNumber": "P23",
+  "problemDifficulty": "hard",
+  "problemTitle": "Extract N elements at given positions",
+  "problemDescription": "Extract elements at specific positions from a list. This is a simplified version - given a list of indices, extract those elements. (Note: The original problem involves randomness which is difficult to test deterministically)",
+  "problemExample": {
+    "code": "selectAt [0,2,5] [1,2,3,4,5,6,7,8]",
+    "result": "[1,3,6]"
+  },
+  "problemFunctionSignature": "defn selectAt :: [Int] -> [a] -> [a] {\n    -- Your solution here\n    -- Extract elements at the given indices\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: selectAt [0,2,5] [1,2,3,4,5,6,7,8]",
+      "testCaseCall": "display selectAt [0,2,5] [1,2,3,4,5,6,7,8]",
+      "testCaseExpected": "[1,3,6]"
+    },
+    {
+      "testCaseName": "Test 2: selectAt [0,1] [1,2,3]",
+      "testCaseCall": "display selectAt [0,1] [1,2,3]",
+      "testCaseExpected": "[1,2]"
+    },
+    {
+      "testCaseName": "Test 3: selectAt [] [1,2,3]",
+      "testCaseCall": "display selectAt [] [1,2,3]",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

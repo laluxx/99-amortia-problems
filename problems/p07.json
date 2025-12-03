@@ -1,0 +1,30 @@
+{
+  "problemId": "p07",
+  "problemNumber": "P07",
+  "problemDifficulty": "medium",
+  "problemTitle": "Flatten a nested list structure",
+  "problemDescription": "Transform a list, possibly holding lists as elements into a flat list by replacing each list with its elements (recursively).",
+  "problemExample": {
+    "code": "flatten [[1],[2,[3,[4,[5,6]]]]]",
+    "result": "[1,2,3,4,5,6]"
+  },
+  "problemFunctionSignature": "defn flatten :: [[a]] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: flatten [[1,2],[3],[4,5,6]]",
+      "testCaseCall": "display flatten [[1,2],[3],[4,5,6]]",
+      "testCaseExpected": "[1,2,3,4,5,6]"
+    },
+    {
+      "testCaseName": "Test 2: flatten [[1],[2],[3]]",
+      "testCaseCall": "display flatten [[1],[2],[3]]",
+      "testCaseExpected": "[1,2,3]"
+    },
+    {
+      "testCaseName": "Test 3: flatten []",
+      "testCaseCall": "display flatten []",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

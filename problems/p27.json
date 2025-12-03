@@ -1,0 +1,30 @@
+{
+  "problemId": "p27",
+  "problemNumber": "P27",
+  "problemDifficulty": "hard",
+  "problemTitle": "Group elements into disjoint subsets (simplified)",
+  "problemDescription": "Group a list into sublists of given sizes. For simplicity, just split the list sequentially by the given sizes.",
+  "problemExample": {
+    "code": "group [2,3,4] [1,2,3,4,5,6,7,8,9]",
+    "result": "[[1,2],[3,4,5],[6,7,8,9]]"
+  },
+  "problemFunctionSignature": "defn group :: [Int] -> [a] -> [[a]] {\n    -- Your solution here\n    -- Split list into groups of given sizes\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: group [2,3,4] [1,2,3,4,5,6,7,8,9]",
+      "testCaseCall": "display group [2,3,4] [1,2,3,4,5,6,7,8,9]",
+      "testCaseExpected": "[[1,2],[3,4,5],[6,7,8,9]]"
+    },
+    {
+      "testCaseName": "Test 2: group [1,2] [1,2,3]",
+      "testCaseCall": "display group [1,2] [1,2,3]",
+      "testCaseExpected": "[[1],[2,3]]"
+    },
+    {
+      "testCaseName": "Test 3: group [] [1,2,3]",
+      "testCaseCall": "display group [] [1,2,3]",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

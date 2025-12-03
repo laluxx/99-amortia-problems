@@ -1,0 +1,30 @@
+{
+  "problemId": "p28",
+  "problemNumber": "P28",
+  "problemDifficulty": "hard",
+  "problemTitle": "Sort list of lists by length",
+  "problemDescription": "Sort a list of lists according to their length. Shorter lists come first.",
+  "problemExample": {
+    "code": "lsort [[1,2,3],[1,2],[1],[2],[1,2,3,4]]",
+    "result": "[[1],[2],[1,2],[1,2,3],[1,2,3,4]]"
+  },
+  "problemFunctionSignature": "defn lsort :: [[a]] -> [[a]] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: lsort [[1,2,3],[1,2],[1],[2],[1,2,3,4]]",
+      "testCaseCall": "display lsort [[1,2,3],[1,2],[1],[2],[1,2,3,4]]",
+      "testCaseExpected": "[[1],[2],[1,2],[1,2,3],[1,2,3,4]]"
+    },
+    {
+      "testCaseName": "Test 2: lsort [[1,2],[3],[4,5,6]]",
+      "testCaseCall": "display lsort [[1,2],[3],[4,5,6]]",
+      "testCaseExpected": "[[3],[1,2],[4,5,6]]"
+    },
+    {
+      "testCaseName": "Test 3: lsort []",
+      "testCaseCall": "display lsort []",
+      "testCaseExpected": "[]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

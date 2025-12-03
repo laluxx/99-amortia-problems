@@ -1,0 +1,25 @@
+{
+  "problemId": "p12",
+  "problemNumber": "P12",
+  "problemDifficulty": "medium",
+  "problemTitle": "Decode a run-length encoded list",
+  "problemDescription": "Given a run-length code list generated as specified in problem P10, construct its uncompressed version.",
+  "problemExample": {
+    "code": "decode [[4,1],[1,2],[2,3],[2,1],[1,4],[4,5]]",
+    "result": "[1,1,1,1,2,3,3,1,1,4,5,5,5,5]"
+  },
+  "problemFunctionSignature": "defn decode :: [[Int]] -> [a] {\n    -- Your solution here\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: decode [[4,1],[1,2],[2,3],[2,1],[1,4],[4,5]]",
+      "testCaseCall": "display decode [[4,1],[1,2],[2,3],[2,1],[1,4],[4,5]]",
+      "testCaseExpected": "[1,1,1,1,2,3,3,1,1,4,5,5,5,5]"
+    },
+    {
+      "testCaseName": "Test 2: decode [[3,1]]",
+      "testCaseCall": "display decode [[3,1]]",
+      "testCaseExpected": "[1,1,1]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}

@@ -1,0 +1,30 @@
+{
+  "problemId": "p20",
+  "problemNumber": "P20",
+  "problemDifficulty": "easy",
+  "problemTitle": "Remove the Kth element from a list",
+  "problemDescription": "Remove the element at position K (0-indexed) from a list. Return a list containing [remaining_list, removed_element].",
+  "problemExample": {
+    "code": "removeAt 3 [1,2,3,4,5,6]",
+    "result": "[[1,2,3,5,6],4]"
+  },
+  "problemFunctionSignature": "defn removeAt :: Int -> [a] -> [[a]] {\n    -- Your solution here\n    -- Return [[remaining], removed]\n}",
+  "problemTestCases": [
+    {
+      "testCaseName": "Test 1: removeAt 3 [1,2,3,4,5,6]",
+      "testCaseCall": "display removeAt 3 [1,2,3,4,5,6]",
+      "testCaseExpected": "[[1,2,3,5,6],4]"
+    },
+    {
+      "testCaseName": "Test 2: removeAt 0 [1,2,3]",
+      "testCaseCall": "display removeAt 0 [1,2,3]",
+      "testCaseExpected": "[[2,3],1]"
+    },
+    {
+      "testCaseName": "Test 3: removeAt 2 [1,2,3]",
+      "testCaseCall": "display removeAt 2 [1,2,3]",
+      "testCaseExpected": "[[1,2],3]"
+    }
+  ],
+  "problemSection": "Working with Lists"
+}
