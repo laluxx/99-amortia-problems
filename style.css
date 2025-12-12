@@ -2,6 +2,8 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  scrollbar-width: auto; /* auto | thin | none */
+  scrollbar-color: #3e3e3e #1e1e1e; /* thumb track */
 }
 
 body {
@@ -240,14 +242,14 @@ h1 {
   line-height: 1.8;
 }
 
-.intro a {
+a {
     color: #4ec9b0;
     text-decoration: none;
     border-bottom: 1px solid transparent;
     transition: border-color 0.2s;
 }
 
-.intro a:hover {
+a:hover {
     border-bottom-color: #4ec9b0;
 }
 
@@ -257,6 +259,15 @@ h1 {
   border-radius: 3px;
   margin: 30px 0;
   font-size: 13px;
+}
+
+.book-logo-inline {
+  width: 44px;
+  height: 44px;
+  vertical-align: middle;
+  margin-left: 10px;
+  opacity: 0.8;
+  object-fit: contain;
 }
 
 .difficulty-legend span {
@@ -588,7 +599,6 @@ h1 {
   background: #4e4e4e;
 }
 
-
 footer {
     margin-top: 80px;
     padding-top: 30px;
@@ -606,3 +616,6 @@ footer a {
 footer a:hover {
     text-decoration: underline;
 }
+
+
+

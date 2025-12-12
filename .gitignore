@@ -2,6 +2,7 @@
 *.o
 *.beam
 tests
+run
 problems.db
 .stack-work
 amortia-problems.cabal

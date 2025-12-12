@@ -27,9 +27,9 @@ import qualified Data.Map.Strict as Map
 import Data.Time.Clock (getCurrentTime, UTCTime, addUTCTime)
 import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Data.ByteString.Base64 as B64
-import qualified Data.ByteString.Char8 as BS
 import System.Random (randomRIO)
 import Data.List (isSuffixOf, sortOn)
+import Data.Char (isAlphaNum)
 
 -- Session Management
 type SessionToken = T.Text
@@ -263,6 +263,13 @@ cleanTestDirectory problemId = do
   removePathForcibly testDir
   createDirectoryIfMissing True testDir
 
+-- Clean up run directory for a docs example
+cleanRunDirectory :: T.Text -> IO ()
+cleanRunDirectory exampleName = do
+  let runDir = "run" </> T.unpack exampleName
+  removePathForcibly runDir
+  createDirectoryIfMissing True runDir
+
 -- Database Functions
 initDB :: IO Connection
 initDB = do
@@ -343,7 +350,7 @@ hasUserSubmitted conn problemId uname = do
     [Only count] -> return (count > 0)
     _ -> return False
 
--- NEW: Get all submitted solutions for a user (for imports)
+-- Get all submitted solutions for a user (for imports)
 getUserSolutions :: Connection -> T.Text -> IO [Solution]
 getUserSolutions conn username = do
   query conn
@@ -352,7 +359,7 @@ getUserSolutions conn username = do
     \ORDER BY submitted_at ASC"
     (Only username)
 
--- NEW: Extract function definitions from code
+-- Extract function definitions from code
 extractFunctions :: T.Text -> T.Text
 extractFunctions code = 
   T.unlines $ filter isFunction $ T.lines code
@@ -365,7 +372,7 @@ extractFunctions code =
          (T.any (`elem` ['{', '}', '-', '|', ',']) stripped || 
           T.any (`elem` ['a'..'z']) stripped)
 
--- NEW: Build library code from previous solutions
+-- Build library code from previous solutions
 buildLibraryCode :: Connection -> T.Text -> T.Text -> IO T.Text
 buildLibraryCode conn username currentProblemId = do
   solutions <- getUserSolutions conn username
@@ -378,6 +385,17 @@ buildLibraryCode conn username currentProblemId = do
   
   -- Combine all function definitions
   return $ T.intercalate "\n\n" $ filter (not . T.null) functionDefs
+
+-- Extract function name from code (for docs examples)
+extractFunctionName :: T.Text -> T.Text
+extractFunctionName code =
+  case T.lines code of
+    [] -> "example"
+    (firstLine:_) -> 
+      let tokens = T.words firstLine
+      in case tokens of
+        ("defn":name:_) -> name
+        _ -> "example"
 
 -- Compiler Integration
 runAmortiaCode :: T.Text -> T.Text -> T.Text -> IO (Either T.Text T.Text)
@@ -420,6 +438,46 @@ runAmortiaCode problemId testName code = do
                 ExitFailure _ -> return $ Left $ T.pack $ "Runtime error:\n" ++ stdout2 ++ "\n" ++ stderr2
     )
 
+-- Run documentation example (no test cases, just compile and run)
+runDocsExample :: T.Text -> T.Text -> IO (Either T.Text T.Text)
+runDocsExample exampleId code = do
+  let runDir = "run" </> T.unpack exampleId
+      amorFile = "example.amor"
+      execFile = "./example"
+  
+  createDirectoryIfMissing True runDir
+  currentDir <- getCurrentDirectory
+  
+  bracket
+    (setCurrentDirectory runDir)
+    (\_ -> setCurrentDirectory currentDir)
+    (\_ -> do
+      writeFile amorFile (T.unpack code)
+      
+      let compilerPath = currentDir </> "amortia"
+      (exitCode1, stdout1, stderr1) <- readProcessWithExitCode compilerPath [amorFile] ""
+      
+      let combinedOutput = stdout1 ++ stderr1
+      
+      if "Parse error:" `T.isInfixOf` T.pack combinedOutput
+        then return $ Left $ T.pack $ stdout1 ++ stderr1
+        else if "Erlang compilation failed:" `T.isInfixOf` T.pack stdout1
+          then do
+            let erlangError = extractErlangError (T.pack stdout1)
+            return $ Left erlangError
+          else case exitCode1 of
+            ExitFailure _ -> return $ Left $ T.pack $ stdout1 ++ "\n" ++ stderr1
+            ExitSuccess -> do
+              (exitCode2, stdout2, stderr2) <- readProcessWithExitCode
+                "timeout"
+                ["5s", execFile]
+                ""
+              
+              case exitCode2 of
+                ExitSuccess -> return $ Right $ T.pack stdout2
+                ExitFailure _ -> return $ Left $ T.pack $ "Runtime error:\n" ++ stdout2 ++ "\n" ++ stderr2
+    )
+
 extractErlangError :: T.Text -> T.Text
 extractErlangError output =
   let errorLines = T.lines output
@@ -430,7 +488,11 @@ extractErlangError output =
      then "Compilation error (Erlang)"
      else "Compilation error:\n" <> T.strip errorMsg
 
--- Run Tests (MODIFIED to include library code)
+-- Check if problemId is a documentation example
+isDocsProblem :: T.Text -> Bool
+isDocsProblem pid = "docs_" `T.isPrefixOf` pid
+
+-- Run Tests (handles regular problems with test cases)
 runTests :: Connection -> TestRequest -> T.Text -> IO (Either String TestResponse)
 runTests conn (TestRequest pid cod _) username = do
   mProblem <- getProblemById pid
@@ -472,6 +534,9 @@ main = do
   -- Load problems from JSON
   _ <- loadProblems
   
+  -- Create run directory for documentation examples
+  createDirectoryIfMissing True "run"
+  
   putStrLn "Starting Amortia Problems server on http://localhost:3000"
   
   scotty 3000 $ do
@@ -483,6 +548,15 @@ main = do
     get "/style.css" $ file "style.css"
     get "/script.js" $ file "script.js"
     get "/logo.png" $ file "logo.png"    
+    get "/book.png" $ file "book.png"    
+    get "/favicon.png" $ file "favicon.png"    
+
+    -- Documentation routes
+    get "/docs" $ file "docs.html"
+    get "/docs.html" $ file "docs.html"
+    get "/docs.css" $ file "docs.css"
+    get "/vs2015.css" $ file "vs2015.css"
+    get "/docs.js" $ file "docs.js"
 
     -- Get all problems
     get "/api/problems" $ do
@@ -565,35 +639,65 @@ main = do
           json $ object ["valid" .= False]
         Just _ -> json $ object ["valid" .= True]
     
-    -- Test endpoint with session validation (MODIFIED)
+    -- Test endpoint - handles BOTH docs examples and regular problems
     post "/api/test" $ do
       req <- jsonData :: ActionM TestRequest
       let TestRequest pid cod mToken = req
       
-      case mToken of
-        Nothing -> do
-          status status401
-          json $ object ["error" .= ("Session required" :: T.Text)]
-        Just token -> do
-          mSession <- liftIO $ getSession token
-          case mSession of
+      -- Check if this is a documentation example
+      if isDocsProblem pid
+        then do
+          -- Documentation example - just compile and run
+          let exampleId = extractFunctionName cod
+          liftIO $ cleanRunDirectory exampleId
+          
+          result <- liftIO $ runDocsExample exampleId cod
+          
+          case result of
+            Left err -> do
+              status status403
+              json $ object 
+                [ "results" .= [object 
+                    [ "testName" .= ("Compile and Run" :: T.Text)
+                    , "testPassed" .= False
+                    , "testError" .= err
+                    ]]
+                , "allPassed" .= False
+                ]
+            Right output -> json $ object
+                [ "results" .= [object 
+                    [ "testName" .= ("Output" :: T.Text)
+                    , "testPassed" .= True
+                    , "testError" .= output
+                    ]]
+                , "allPassed" .= True
+                ]
+        else do
+          -- Regular problem - requires authentication and runs test cases
+          case mToken of
             Nothing -> do
               status status401
-              json $ object ["error" .= ("Invalid or expired session" :: T.Text)]
-            Just session -> do
-              -- Pass username to runTests for library code
-              testResult <- liftIO $ runTests conn req (sessionUsername session)
-              
-              case testResult of
-                Left err -> do
-                  status status403
-                  json $ object ["error" .= err]
-                Right testResp -> do
-                  -- If all tests passed, mark in session
-                  when (allPassed testResp) $ do
-                    liftIO $ markTestPassed token pid
+              json $ object ["error" .= ("Session required" :: T.Text)]
+            Just token -> do
+              mSession <- liftIO $ getSession token
+              case mSession of
+                Nothing -> do
+                  status status401
+                  json $ object ["error" .= ("Invalid or expired session" :: T.Text)]
+                Just session -> do
+                  -- Pass username to runTests for library code
+                  testResult <- liftIO $ runTests conn req (sessionUsername session)
                   
-                  json testResp
+                  case testResult of
+                    Left err -> do
+                      status status403
+                      json $ object ["error" .= err]
+                    Right testResp -> do
+                      -- If all tests passed, mark in session
+                      when (allPassed testResp) $ do
+                        liftIO $ markTestPassed token pid
+                      
+                      json testResp
     
     -- Check if user has submitted
     get "/api/check-submission/:problemId/:username" $ do
@@ -602,7 +706,7 @@ main = do
       hasSubmitted <- liftIO $ hasUserSubmitted conn problemId username
       json $ object ["hasSubmitted" .= hasSubmitted]
     
-    -- Submit solution with server-side validation (MODIFIED)
+    -- Submit solution with server-side validation
     post "/api/submit" $ do
       req <- jsonData :: ActionM SubmitRequest
       let SubmitRequest pid code _ mToken = req
